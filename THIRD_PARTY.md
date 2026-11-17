@@ -14,6 +14,8 @@ Copied from [erengy/taiga](https://github.com/erengy/taiga) (`develop` branch) a
 | `crates/share/src/*`, `src-tauri/src/sharing.rs`, `src-tauri/src/export.rs` | Port of Taiga `src/share/*` and `src/media/anime_list_export.cpp` | GPL-3.0 |
 | `crates/recognition/src/*` | Port of Taiga `src/track/recognition*.cpp`, `scanner.cpp`, `play.cpp` | GPL-3.0 |
 | `crates/compat/src/*` | Port of Taiga `src/compat/*` (v1 data readers) | GPL-3.0 |
+| `crates/feed/src/*`, `crates/core/src/feed.rs`, `src-tauri/src/torrents.rs` | Port of Taiga v1 `src/track/feed*.cpp`, `base/rss.cpp` | GPL-3.0 |
+| `src-tauri/src/stats.rs` | Port of Taiga v1 `src/taiga/stats.cpp` and `EstimateDuration`/`EstimateEpisodeCount` | GPL-3.0 |
 | `src-tauri/resources/anime-relations.txt` | `erengy/anime-relations` | Public domain |
 
 If the project chooses a clean-room, non-GPL license (MIGRATION_PLAN.md §3), the GPL-3.0 files above must be rewritten rather than copied.

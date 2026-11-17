@@ -15,6 +15,9 @@ use crate::client::{RemoteList, SavedEntry};
 use crate::search::{SearchParams, SearchSort};
 use crate::{Error, Result, gql, http};
 
+/// Pages of 50 fetched for a season; no season has had more than 500 anime.
+const SEASON_MAX_PAGES: u32 = 10;
+
 pub use parse::{parse_list_entry, parse_media};
 
 pub const API_URL: &str = "https://graphql.anilist.co";
@@ -57,6 +60,7 @@ impl AniList {
             score_format: viewer["mediaListOptions"]["scoreFormat"]
                 .as_str()
                 .map(str::to_owned),
+            avatar_url: viewer["avatar"]["large"].as_str().map(str::to_owned),
         })
     }
 
@@ -138,6 +142,31 @@ impl AniList {
             .as_array()
             .ok_or_else(|| Error::parse("search results"))?;
         Ok(media.iter().filter_map(parse_media).collect())
+    }
+
+    /// Every anime of a season, most popular first (up to 10 pages).
+    pub async fn season(&self, season: SeasonName, year: i32) -> Result<Vec<Anime>> {
+        let mut params = SearchParams {
+            season: Some(season),
+            year: Some(year),
+            ..SearchParams::default()
+        };
+        params.sort = None;
+        let mut all = Vec::new();
+        for page in 1..=SEASON_MAX_PAGES {
+            let mut variables = search_variables(&params);
+            variables["page"] = json!(page);
+            variables["sort"] = json!(["POPULARITY_DESC"]);
+            let data = self.query(gql::MEDIA_SEARCH, variables).await?;
+            let media = data["Page"]["media"]
+                .as_array()
+                .ok_or_else(|| Error::parse("season"))?;
+            all.extend(media.iter().filter_map(parse_media));
+            if data["Page"]["pageInfo"]["hasNextPage"] != json!(true) {
+                break;
+            }
+        }
+        Ok(all)
     }
 
     /// Runs a query and returns its `data`.

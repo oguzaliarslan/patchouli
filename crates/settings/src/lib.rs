@@ -13,6 +13,7 @@ pub use store::{Error, Listener, SettingsStore};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use tracker_core::feed::Filter;
 use tracker_core::{ServiceId, TitleLanguage};
 
 /// File name Taiga uses for its settings.
@@ -50,7 +51,40 @@ pub enum UpdateTrigger {
     OnPlayerClose,
 }
 
-/// All settings, keyed as in Taiga's `taiga/settings.hpp`.
+/// What to do when an automatic feed check selects new items.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TorrentNewAction {
+    #[default]
+    Notify,
+    Download,
+}
+
+/// Which program opens downloaded torrents.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TorrentApp {
+    /// The program Windows associates with `.torrent` files and magnet links.
+    #[default]
+    Default,
+    Custom,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TorrentSortBy {
+    #[default]
+    EpisodeNumber,
+    ReleaseDate,
+}
+
+/// Taiga v1's default feed (`rss/torrent/source/address`).
+pub const DEFAULT_TORRENT_SOURCE: &str = "https://www.tokyotosho.info/rss.php?filter=1,11&zwnj=0";
+/// Taiga v1's default search (`%title%` is replaced).
+pub const DEFAULT_TORRENT_SEARCH: &str = "https://nyaa.si/?page=rss&c=1_2&f=0&q=%title%";
+
+/// All settings, keyed as in Taiga's `taiga/settings.hpp`. Torrent settings
+/// (`torrents.*`) are from Taiga v1, which v2 doesn't have yet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -123,6 +157,50 @@ pub struct Settings {
     #[serde(rename = "track.update.trigger")]
     pub update_trigger: UpdateTrigger,
 
+    #[serde(rename = "torrents.source")]
+    pub torrent_source: String,
+    #[serde(rename = "torrents.searchUrl")]
+    pub torrent_search_url: String,
+    #[serde(rename = "torrents.autoCheck.enabled")]
+    pub torrent_auto_check: bool,
+    /// Minutes between automatic checks.
+    #[serde(rename = "torrents.autoCheck.interval")]
+    pub torrent_auto_check_interval: u32,
+    #[serde(rename = "torrents.autoCheck.action")]
+    pub torrent_new_action: TorrentNewAction,
+    #[serde(rename = "torrents.app.mode")]
+    pub torrent_app: TorrentApp,
+    #[serde(rename = "torrents.app.open")]
+    pub torrent_app_open: bool,
+    #[serde(rename = "torrents.app.path")]
+    pub torrent_app_path: String,
+    /// Where `.torrent` files are saved; the data folder if empty.
+    #[serde(rename = "torrents.download.fileFolder")]
+    pub torrent_file_folder: String,
+    /// Tell the client to save into the anime's folder.
+    #[serde(rename = "torrents.download.useAnimeFolder")]
+    pub torrent_use_anime_folder: bool,
+    /// Without an anime folder, save into `torrents.download.folder`.
+    #[serde(rename = "torrents.download.fallbackToFolder")]
+    pub torrent_fallback_to_folder: bool,
+    #[serde(rename = "torrents.download.folder")]
+    pub torrent_download_folder: String,
+    /// …in a subfolder named after the anime.
+    #[serde(rename = "torrents.download.createSubfolder")]
+    pub torrent_create_subfolder: bool,
+    #[serde(rename = "torrents.download.sortBy")]
+    pub torrent_sort_by: TorrentSortBy,
+    #[serde(rename = "torrents.download.descending")]
+    pub torrent_sort_descending: bool,
+    #[serde(rename = "torrents.download.useMagnet")]
+    pub torrent_use_magnet: bool,
+    #[serde(rename = "torrents.filter.enabled")]
+    pub torrent_filters_enabled: bool,
+    #[serde(rename = "torrents.filter.archiveMaxCount")]
+    pub torrent_archive_max_count: u32,
+    #[serde(rename = "torrents.filters")]
+    pub torrent_filters: Vec<Filter>,
+
     /// Keys this app doesn't use, kept so they survive a save.
     #[serde(flatten)]
     pub extra: Map<String, Value>,
@@ -159,6 +237,26 @@ impl Default for Settings {
             update_library_only: false,
             update_pause_when_unfocused: false,
             update_trigger: UpdateTrigger::AfterDelay,
+            torrent_source: DEFAULT_TORRENT_SOURCE.into(),
+            torrent_search_url: DEFAULT_TORRENT_SEARCH.into(),
+            // Taiga checks by default; off here until the user sets a feed up.
+            torrent_auto_check: false,
+            torrent_auto_check_interval: 60,
+            torrent_new_action: TorrentNewAction::Notify,
+            torrent_app: TorrentApp::Default,
+            torrent_app_open: true,
+            torrent_app_path: String::new(),
+            torrent_file_folder: String::new(),
+            torrent_use_anime_folder: true,
+            torrent_fallback_to_folder: false,
+            torrent_download_folder: String::new(),
+            torrent_create_subfolder: false,
+            torrent_sort_by: TorrentSortBy::EpisodeNumber,
+            torrent_sort_descending: false,
+            torrent_use_magnet: false,
+            torrent_filters_enabled: true,
+            torrent_archive_max_count: 1000,
+            torrent_filters: tracker_core::feed::default_filters(),
             extra: Map::new(),
         }
     }
@@ -170,6 +268,8 @@ impl Settings {
         self.update_delay_secs = self
             .update_delay_secs
             .clamp(UPDATE_DELAY_MIN, UPDATE_DELAY_MAX);
+        // At most every 10 minutes, to go easy on the sites.
+        self.torrent_auto_check_interval = self.torrent_auto_check_interval.clamp(10, 24 * 60);
     }
 }
 

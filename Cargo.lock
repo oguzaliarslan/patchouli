@@ -4639,6 +4639,7 @@ dependencies = [
  "tracker-core",
  "tracker-db",
  "tracker-detect",
+ "tracker-feed",
  "tracker-recognition",
  "tracker-settings",
  "tracker-share",
@@ -4686,6 +4687,21 @@ dependencies = [
  "serde",
  "serde_json",
  "windows 0.62.2",
+ "zbus",
+]
+
+[[package]]
+name = "tracker-feed"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "regex",
+ "serde",
+ "serde_json",
+ "tracker-anitomy",
+ "tracker-compat",
+ "tracker-core",
+ "tracker-recognition",
 ]
 
 [[package]]

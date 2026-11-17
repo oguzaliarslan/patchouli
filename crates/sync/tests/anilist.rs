@@ -253,3 +253,30 @@ async fn synchronize_prunes_entries_missing_remotely_but_keeps_queued_ones() {
     assert_eq!(ids, [10, 30]);
     assert_eq!(list::get(&db, 10).unwrap().unwrap().watched_episodes, 3);
 }
+
+#[tokio::test]
+async fn season_fetches_every_page() {
+    let server = MockServer::start().await;
+    let media =
+        |id: i32| json!({ "id": id, "title": { "romaji": format!("Show {id}") }, "format": "TV" });
+    for (page, ids, more) in [(1, vec![1, 2], true), (2, vec![3], false)] {
+        Mock::given(method("POST"))
+            .and(body_partial_json(json!({ "variables": {
+                "page": page, "season": "FALL", "seasonYear": 2024, "sort": ["POPULARITY_DESC"]
+            } })))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({ "data": { "Page": {
+                "media": ids.iter().map(|&id| media(id)).collect::<Vec<_>>(),
+                "pageInfo": { "hasNextPage": more }
+            } } })),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+    }
+    let anime = client(&server)
+        .season(tracker_core::SeasonName::Fall, 2024)
+        .await
+        .unwrap();
+    assert_eq!(anime.iter().map(|a| a.id).collect::<Vec<_>>(), [1, 2, 3]);
+}

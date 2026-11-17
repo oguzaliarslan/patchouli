@@ -20,6 +20,9 @@ pub struct Account {
     /// AniList's score format (e.g. `POINT_10_DECIMAL`). Scores are always
     /// stored on a 0–100 scale; this is for display.
     pub score_format: Option<String>,
+    /// Profile picture.
+    #[serde(default)]
+    pub avatar_url: Option<String>,
 }
 
 /// Accounts per service, saved to a JSON file on every change.
@@ -91,6 +94,7 @@ mod tests {
             username: "user".into(),
             user_id: 1,
             score_format: Some("POINT_100".into()),
+            avatar_url: Some("https://example.com/a.png".into()),
         };
         file.set(ServiceId::AniList, account.clone()).unwrap();
 

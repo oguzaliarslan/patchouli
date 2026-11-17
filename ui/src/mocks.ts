@@ -5,6 +5,8 @@ import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import type {
   AccountStatus,
   Anime,
+  Feed,
+  FeedItem,
   AnimeSettings,
   HistoryItem,
   ListEntry,
@@ -141,7 +143,105 @@ let settings: Settings = {
   "track.update.libraryOnly": false,
   "track.update.pauseWhenUnfocused": false,
   "track.update.trigger": "afterDelay",
+  "torrents.source": "https://www.tokyotosho.info/rss.php?filter=1,11&zwnj=0",
+  "torrents.searchUrl": "https://nyaa.si/?page=rss&c=1_2&f=0&q=%title%",
+  "torrents.autoCheck.enabled": false,
+  "torrents.autoCheck.interval": 60,
+  "torrents.autoCheck.action": "notify",
+  "torrents.app.mode": "default",
+  "torrents.app.open": true,
+  "torrents.app.path": "",
+  "torrents.download.fileFolder": "",
+  "torrents.download.useAnimeFolder": true,
+  "torrents.download.fallbackToFolder": false,
+  "torrents.download.folder": "",
+  "torrents.download.createSubfolder": false,
+  "torrents.download.sortBy": "episodeNumber",
+  "torrents.download.descending": false,
+  "torrents.download.useMagnet": false,
+  "torrents.filter.enabled": true,
+  "torrents.filter.archiveMaxCount": 1000,
+  "torrents.filters": [
+    {
+      name: "Select currently watching",
+      enabled: true,
+      action: "select",
+      match: "any",
+      option: "default",
+      animeIds: [],
+      conditions: [{ element: "user_status", operator: "equals", value: "1" }],
+    },
+    {
+      name: "Discard watched and available episodes",
+      enabled: true,
+      action: "discard",
+      match: "any",
+      option: "default",
+      animeIds: [],
+      conditions: [
+        { element: "episode_number", operator: "le", value: "%watched%" },
+        { element: "local_episode_available", operator: "equals", value: "True" },
+      ],
+    },
+    {
+      name: "Prefer high-resolution files",
+      enabled: true,
+      action: "prefer",
+      match: "any",
+      option: "default",
+      animeIds: [],
+      conditions: [{ element: "episode_video_resolution", operator: "equals", value: "1080p" }],
+    },
+  ],
 };
+
+/** A sample feed: the next episodes of anime being watched, in two resolutions. */
+let torrentFeed: Feed | null = null;
+let archived = 0;
+function sampleFeed(url: string): Feed {
+  const items: FeedItem[] = [];
+  const watching = [...entries.values()].filter((e) => e.status === "Watching").slice(0, 8);
+  const groups = ["SubsPlease", "Erai-raws"];
+  watching.forEach((e, n) => {
+    const anime = catalog.get(e.animeId)!;
+    const group = groups[n % 2];
+    for (const [resolution, size] of [["1080p", 1_400_000_000], ["720p", 700_000_000]] as const) {
+      const episode = e.watchedEpisodes + 1;
+      const title = `[${group}] ${anime.titles.romaji} - ${String(episode).padStart(2, "0")} (${resolution}).mkv`;
+      items.push({
+        title,
+        link: `https://example.com/${e.animeId}-${resolution}.torrent`,
+        description: `Size: ${(size / 1e9).toFixed(1)} GB`,
+        category: "Anime",
+        sourceCategory: "Anime - English-translated",
+        guid: `https://example.com/view/${e.animeId}`,
+        pubDate: "",
+        pubTime: Math.floor(Date.now() / 1000) - n * 5400,
+        infoLink: `https://example.com/view/${e.animeId}`,
+        magnetLink: "",
+        fileSize: size,
+        seeders: 400 - n * 30,
+        leechers: 12,
+        downloads: 2000,
+        state: resolution === "1080p" ? "selected" : "discardedNormal",
+        animeId: e.animeId,
+        newEpisode: true,
+        episode: { title: anime.titles.romaji, number: String(episode), version: 1, group, resolution, video: "" },
+      });
+    }
+  });
+  items.push({
+    ...items[0],
+    title: "[Other] Unknown Show - 01 (1080p).mkv",
+    link: "https://example.com/unknown.torrent",
+    state: "discardedInactive",
+    animeId: null,
+    newEpisode: false,
+    episode: { ...items[0].episode, title: "Unknown Show", number: "1", group: "Other" },
+  });
+  items.sort((a, b) => Number(b.state === "selected") - Number(a.state === "selected"));
+  return { url, title: "Tokyo Toshokan", items };
+}
 
 const accounts: Record<"anilist" | "myanimelist", string | null> = { anilist: "sample-user", myanimelist: null };
 
@@ -152,6 +252,8 @@ function accountStatus(): AccountStatus[] {
     configured: true,
     scoreFormat: service === "anilist" ? "POINT_10_DECIMAL" : "POINT_10",
     username: accounts[service],
+    avatarUrl: null,
+    profileUrl: accounts[service] ? `https://anilist.co/user/${accounts[service]}/` : null,
     current: settings["sync.service"] === service,
     connected: settings["sync.service"] === service && !!accounts[service],
   }));
@@ -384,6 +486,89 @@ export function installMocks() {
             anime: Object.fromEntries(found.map((e) => [e.animeId, catalog.get(e.animeId)])),
           };
         }
+        case "season_get": {
+          await sleep(300);
+          const wanted = `${a.season}`;
+          return [...catalog.values()]
+            .filter((x) => {
+              const m = Number(x.dateStarted.slice(5, 7));
+              const y = Number(x.dateStarted.slice(0, 4));
+              const name = ["winter", "winter", "spring", "spring", "spring", "summer", "summer", "summer", "fall", "fall", "fall", "winter"][m - 1];
+              return name === wanted && (m === 12 ? y + 1 : y) === a.year;
+            })
+            .sort((x, y) => x.popularityRank - y.popularityRank);
+        }
+        case "stats_get": {
+          const items = [...entries.values()];
+          const scoreCounts = Array(11).fill(0);
+          const statusCounts: Record<string, number> = {};
+          const typeCounts: Record<string, number> = {};
+          const genres: Record<string, number> = {};
+          let episodes = 0;
+          for (const e of items) {
+            const anime = catalog.get(e.animeId)!;
+            episodes += e.watchedEpisodes;
+            if (e.score) scoreCounts[Math.floor(e.score / 10)]++;
+            statusCounts[e.status] = (statusCounts[e.status] ?? 0) + 1;
+            typeCounts[anime.type] = (typeCounts[anime.type] ?? 0) + 1;
+            for (const g of anime.genres) genres[g] = (genres[g] ?? 0) + 1;
+          }
+          const scores = items.filter((e) => e.score).map((e) => e.score);
+          const mean = scores.reduce((x, y) => x + y, 0) / (scores.length || 1);
+          const months: Record<string, number> = {};
+          for (const h of history) {
+            const d = new Date(h.time * 1000);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            months[key] = (months[key] ?? 0) + 1;
+          }
+          return {
+            animeCount: items.length,
+            episodeCount: episodes,
+            secondsWatched: episodes * 24 * 60,
+            secondsPlanned: 123 * 24 * 60,
+            meanScore: mean,
+            scoreDeviation: Math.sqrt(scores.reduce((x, s) => x + (s - mean) ** 2, 0) / (scores.length || 1)),
+            scoreCounts,
+            statusCounts,
+            typeCounts,
+            topGenres: Object.entries(genres).sort((x, y) => y[1] - x[1]).slice(0, 10),
+            historyCount: history.length,
+            historyByMonth: Object.entries(months).sort(),
+          };
+        }
+        case "profile_refresh":
+          return accountStatus().find((x) => x.current);
+        case "torrents_get":
+          return torrentFeed;
+        case "torrents_check":
+        case "torrents_search":
+          torrentFeed = sampleFeed(String(a.url ?? settings["torrents.source"]));
+          return torrentFeed;
+        case "torrents_set_state": {
+          for (const item of torrentFeed?.items ?? []) {
+            if (item.link === a.link) item.state = a.selected ? "selected" : "discardedNormal";
+          }
+          torrentFeed = torrentFeed && { ...torrentFeed, items: [...torrentFeed.items] };
+          return torrentFeed;
+        }
+        case "torrents_download": {
+          const links = (a.links as string[]).length
+            ? (a.links as string[])
+            : (torrentFeed?.items.filter((i) => i.state === "selected").map((i) => i.link) ?? []);
+          const done = torrentFeed?.items.filter((i) => links.includes(i.link)) ?? [];
+          for (const item of done) item.state = "discardedNormal";
+          archived += done.length;
+          torrentFeed = torrentFeed && { ...torrentFeed, items: [...torrentFeed.items] };
+          if (torrentFeed) void emit("torrents", torrentFeed);
+          return { downloaded: done.map((i) => i.title), errors: [] };
+        }
+        case "torrents_presets":
+          return settings["torrents.filters"].map((filter) => ({ description: filter.name, isDefault: true, filter }));
+        case "torrents_archive_info":
+          return { count: archived };
+        case "torrents_archive_clear":
+          archived = 0;
+          return null;
         case "taiga_detect":
           return {
             found: [{ version: "V2", path: TAIGA_PATH }],

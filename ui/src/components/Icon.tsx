@@ -20,6 +20,11 @@ const PATHS = {
   play: "M8 5v14l11-7z",
   refresh:
     "M12 5a7 7 0 0 1 6.3 4H15v2h6V5h-2v2.1A9 9 0 1 0 21 12h-2a7 7 0 1 1-7-7z",
+  download: "M11 4h2v8.2l3.3-3.3 1.4 1.4L12 16l-5.7-5.7 1.4-1.4 3.3 3.3zM5 18h14v2H5z",
+  calendar:
+    "M7 3h2v2h6V3h2v2h2a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2zM6 10v8h12v-8zm2 2h3v3H8z",
+  person:
+    "M12 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0 8c4 0 7 2 7 4.5V20H5v-1.5C5 16 8 14 12 14zm0 2c-2.6 0-4.4 1-4.9 2h9.8c-.5-1-2.3-2-4.9-2z",
 } as const;
 
 export type IconName = keyof typeof PATHS;

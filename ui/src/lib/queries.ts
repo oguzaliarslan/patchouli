@@ -24,6 +24,9 @@ export const keys = {
   players: ["players"] as const,
   tracking: ["tracking"] as const,
   taiga: ["taiga"] as const,
+  torrents: ["torrents"] as const,
+  filterPresets: ["filterPresets"] as const,
+  torrentArchive: ["torrentArchive"] as const,
 };
 
 /** What's playing and the update state, kept current by backend events. */
@@ -62,6 +65,8 @@ export const useList = () => useQuery({ queryKey: keys.list, queryFn: api.list }
 export const useQueue = () => useQuery({ queryKey: keys.queue, queryFn: api.queue });
 export const useHistory = () => useQuery({ queryKey: keys.history, queryFn: api.history });
 export const useAppInfo = () => useQuery({ queryKey: keys.info, queryFn: api.appInfo });
+export const useTorrents = () => useQuery({ queryKey: keys.torrents, queryFn: api.torrents });
+export const useFilterPresets = () => useQuery({ queryKey: keys.filterPresets, queryFn: api.filterPresets });
 export const useTaigaDetection = () => useQuery({ queryKey: keys.taiga, queryFn: api.taigaDetect });
 export const usePlayers = () => useQuery({ queryKey: keys.players, queryFn: api.players });
 export const useAnime = (id: number | null) =>
@@ -143,6 +148,7 @@ export function useBackendEvents(): SyncState {
           invalidateListData();
       }
     });
+    const torrents = api.onTorrents((feed) => queryClient.setQueryData(keys.torrents, feed));
     const settings = api.onSettingsChanged((changed) => {
       void queryClient.invalidateQueries({ queryKey: keys.settings });
       if (changed.includes("sync.service")) {
@@ -152,6 +158,7 @@ export function useBackendEvents(): SyncState {
     return () => {
       void sync.then((f) => f());
       void settings.then((f) => f());
+      void torrents.then((f) => f());
     };
   }, []);
 

@@ -6,8 +6,10 @@ mod logging;
 mod paths;
 mod recognition;
 mod sharing;
+mod stats;
 mod sync;
 mod taiga;
+mod torrents;
 mod tracking;
 mod window;
 
@@ -45,6 +47,7 @@ pub(crate) struct AppState {
     recognition: Arc<RecognitionCache>,
     tracker: Tracker,
     sharing: Sharing,
+    torrents: torrents::Torrents,
     /// Held while a login is in progress.
     login: tokio::sync::Mutex<()>,
 }
@@ -121,6 +124,11 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         {
             tracking::settings_changed(&handle, new);
         }
+        if keys.iter().any(|k| k.starts_with("torrents.filter"))
+            && handle.try_state::<AppState>().is_some()
+        {
+            torrents::refilter(&handle);
+        }
         let _ = handle.emit(SETTINGS_CHANGED, keys);
     });
 
@@ -150,6 +158,9 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         if event == tracker_sync::SyncEvent::ListChanged {
             cache.invalidate();
             sharing::schedule_update(&handle);
+            if handle.try_state::<AppState>().is_some() {
+                torrents::refilter(&handle);
+            }
         }
         if let tracker_sync::SyncEvent::Error { message, .. } = &event {
             log::warn!("Sync: {message}");
@@ -157,6 +168,7 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         let _ = handle.emit(sync::SYNC_EVENT, event);
     });
 
+    let torrents = torrents::Torrents::new(&data_dir.path);
     Ok(AppState {
         accounts: AccountsFile::load(data_dir.path.join(tracker_sync::accounts::FILE_NAME)),
         credentials: Arc::new(KeyringStore::new(app.config().identifier.clone())),
@@ -169,6 +181,7 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         recognition,
         tracker,
         sharing,
+        torrents,
         login: tokio::sync::Mutex::new(()),
     })
 }
@@ -208,6 +221,7 @@ pub fn run() {
             window::show_on_start(app.handle(), &state);
             app.manage(state);
             tracking::start(app.handle());
+            torrents::start(app.handle());
             Ok(())
         })
         .on_window_event(window::on_window_event)
@@ -240,10 +254,22 @@ pub fn run() {
             tracking::update_cancel,
             sharing::sharing_status,
             export::list_export,
+            stats::stats_get,
+            stats::season_get,
+            sync::profile_refresh,
             taiga::taiga_detect,
             taiga::taiga_preview,
             taiga::taiga_import,
             taiga::taiga_dismiss,
+            torrents::torrents_get,
+            torrents::torrents_check,
+            torrents::torrents_search,
+            torrents::torrents_refilter,
+            torrents::torrents_set_state,
+            torrents::torrents_presets,
+            torrents::torrents_archive_info,
+            torrents::torrents_archive_clear,
+            torrents::torrents_download,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -10,15 +10,21 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { HomePage } from "./pages/HomePage";
 import { LibraryPage } from "./pages/LibraryPage";
 import { ListPage } from "./pages/ListPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { SearchPage } from "./pages/SearchPage";
+import { SeasonsPage } from "./pages/SeasonsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { TorrentsPage } from "./pages/TorrentsPage";
 
 const NAV: { id: Page; label: string; icon: IconName }[] = [
   { id: "home", label: "Home", icon: "home" },
   { id: "list", label: "Anime List", icon: "list" },
   { id: "search", label: "Search", icon: "search" },
+  { id: "seasons", label: "Seasons", icon: "calendar" },
   { id: "history", label: "History", icon: "history" },
   { id: "library", label: "Library", icon: "folder" },
+  { id: "torrents", label: "Torrents", icon: "download" },
+  { id: "profile", label: "Profile", icon: "person" },
 ];
 
 export default function App() {
@@ -80,6 +86,9 @@ export default function App() {
           {page === "search" && <SearchPage />}
           {page === "history" && <HistoryPage />}
           {page === "library" && <LibraryPage />}
+          {page === "seasons" && <SeasonsPage />}
+          {page === "torrents" && <TorrentsPage />}
+          {page === "profile" && <ProfilePage />}
           {page === "settings" && <SettingsPage />}
         </main>
 

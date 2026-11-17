@@ -22,6 +22,7 @@ tracker-detect = { path = "crates/detect" }
 tracker-track = { path = "crates/track" }
 tracker-share = { path = "crates/share" }
 tracker-compat = { path = "crates/compat" }
+tracker-feed = { path = "crates/feed" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -1,7 +1,16 @@
 import { createContext, useContext } from "react";
 import type { MenuState } from "../components/ContextMenu";
 
-export type Page = "home" | "list" | "search" | "history" | "library" | "settings";
+export type Page =
+  | "home"
+  | "list"
+  | "search"
+  | "seasons"
+  | "history"
+  | "library"
+  | "torrents"
+  | "profile"
+  | "settings";
 
 export interface AppActions {
   navigate: (page: Page) => void;

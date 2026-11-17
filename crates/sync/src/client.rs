@@ -1,4 +1,4 @@
-use tracker_core::{Anime, Fields, ListEntry, ServiceId};
+use tracker_core::{Anime, Fields, ListEntry, SeasonName, ServiceId};
 
 use crate::accounts::Account;
 use crate::anilist::{self, AniList};
@@ -68,6 +68,13 @@ impl Client {
         match self {
             Self::AniList(c) => c.fetch_anime(id).await,
             Self::MyAnimeList(c) => c.fetch_anime(id).await,
+        }
+    }
+
+    pub async fn season(&self, season: SeasonName, year: i32) -> Result<Vec<Anime>> {
+        match self {
+            Self::AniList(c) => c.season(season, year).await,
+            Self::MyAnimeList(c) => c.season(season, year).await,
         }
     }
 

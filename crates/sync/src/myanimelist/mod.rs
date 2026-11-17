@@ -102,6 +102,7 @@ impl MyAnimeList {
             username,
             user_id: json["id"].as_i64().unwrap_or_default(),
             score_format: None,
+            avatar_url: json["picture"].as_str().map(str::to_owned),
         })
     }
 
@@ -197,6 +198,16 @@ impl MyAnimeList {
         parse_anime(&json)
             .map(Some)
             .ok_or_else(|| Error::parse("anime"))
+    }
+
+    /// Every anime of a season (MyAnimeList returns up to 500).
+    pub async fn season(&self, season: SeasonName, year: i32) -> Result<Vec<Anime>> {
+        self.search(&SearchParams {
+            season: Some(season),
+            year: Some(year),
+            ..SearchParams::default()
+        })
+        .await
     }
 
     /// First page of results. With a season and year, lists that season.

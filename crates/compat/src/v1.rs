@@ -11,6 +11,7 @@ use std::path::Path;
 
 use serde_json::{Map, Value, json};
 use tracker_core::anime::{AgeRating, Status, Titles, Type};
+use tracker_core::feed::{Condition, Element as Element_, Filter, Operator};
 use tracker_core::{
     Anime, AnimeSettings, Fields, FuzzyDate, HistoryItem, ListEntry, ListStatus, QueueItem,
     ServiceId,
@@ -203,6 +204,9 @@ fn read_settings(settings: &Element, slug: &str) -> Map<String, Value> {
             );
         }
     }
+    if let Some(torrent) = settings.child("rss").and_then(|r| r.child("torrent")) {
+        read_torrent_settings(torrent, &mut map);
+    }
     if let Some(discord) = settings
         .child("announce")
         .and_then(|a| a.child("discord"))
@@ -267,6 +271,147 @@ fn read_settings(settings: &Element, slug: &str) -> Map<String, Value> {
         }
     }
     map
+}
+
+/// `rss/torrent/*`: the feed, downloads and filters.
+fn read_torrent_settings(torrent: &Element, map: &mut Map<String, Value>) {
+    let mut set = |key: &str, value: Value| {
+        map.insert(key.into(), value);
+    };
+    if let Some(address) = torrent
+        .child("source")
+        .map(|s| s.attr("address"))
+        .filter(|a| !a.is_empty())
+    {
+        set("torrents.source", json!(address));
+    }
+    if let Some(address) = torrent
+        .child("search")
+        .map(|s| s.attr("address"))
+        .filter(|a| !a.is_empty())
+    {
+        set("torrents.searchUrl", json!(address));
+    }
+    if let Some(options) = torrent.child("options") {
+        let flag = |name: &str| {
+            options
+                .has_attr(name)
+                .then(|| json!(options.attr_bool(name)))
+        };
+        let text = |name: &str| options.has_attr(name).then(|| json!(options.attr(name)));
+        for (key, value) in [
+            ("torrents.autoCheck.enabled", flag("autocheck")),
+            ("torrents.download.folder", text("downloadpath")),
+            ("torrents.download.fileFolder", text("filedownloadpath")),
+            ("torrents.download.useAnimeFolder", flag("autosetfolder")),
+            ("torrents.download.fallbackToFolder", flag("autousefolder")),
+            (
+                "torrents.download.createSubfolder",
+                flag("autocreatefolder"),
+            ),
+            ("torrents.download.useMagnet", flag("downloadusemagnet")),
+        ] {
+            if let Some(value) = value {
+                set(key, value);
+            }
+        }
+        if options.has_attr("checkinterval") {
+            set(
+                "torrents.autoCheck.interval",
+                json!(options.attr_int("checkinterval")),
+            );
+        }
+        if options.has_attr("newaction") {
+            let action = if options.attr_int("newaction") == 2 {
+                "download"
+            } else {
+                "notify"
+            };
+            set("torrents.autoCheck.action", json!(action));
+        }
+        if options.has_attr("downloadsortby") {
+            let by = if options.attr("downloadsortby") == "release_date" {
+                "releaseDate"
+            } else {
+                "episodeNumber"
+            };
+            set("torrents.download.sortBy", json!(by));
+        }
+        if options.has_attr("downloadsortorder") {
+            set(
+                "torrents.download.descending",
+                json!(options.attr("downloadsortorder") == "descending"),
+            );
+        }
+    }
+    if let Some(app) = torrent.child("application") {
+        if app.has_attr("mode") {
+            let mode = if app.attr_int("mode") == 2 {
+                "custom"
+            } else {
+                "default"
+            };
+            set("torrents.app.mode", json!(mode));
+        }
+        if app.has_attr("open") {
+            set("torrents.app.open", json!(app.attr_bool("open")));
+        }
+        if app.has_attr("path") {
+            set("torrents.app.path", json!(app.attr("path")));
+        }
+    }
+    if let Some(filter) = torrent.child("filter") {
+        if filter.has_attr("enabled") {
+            set(
+                "torrents.filter.enabled",
+                json!(filter.attr_bool("enabled")),
+            );
+        }
+        if filter.has_attr("archive_maxcount") {
+            set(
+                "torrents.filter.archiveMaxCount",
+                json!(filter.attr_int("archive_maxcount").max(0)),
+            );
+        }
+        let filters: Vec<Filter> = filter
+            .children_named("item")
+            .filter_map(read_filter)
+            .collect();
+        if filter.children_named("item").next().is_some() {
+            set("torrents.filters", json!(filters));
+        }
+    }
+}
+
+fn shortcode<T: serde::de::DeserializeOwned>(value: &str) -> Option<T> {
+    serde_json::from_value(json!(value.to_lowercase())).ok()
+}
+
+/// A filter in Taiga's shortcodes. Filters with unknown parts are skipped.
+fn read_filter(item: &Element) -> Option<Filter> {
+    let conditions = item
+        .children_named("condition")
+        .map(|c| {
+            Some(Condition {
+                element: Element_::from_shortcode(c.attr("element"))?,
+                operator: Operator::from_shortcode(c.attr("operator"))?,
+                value: c.attr("value").to_owned(),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(Filter {
+        name: item.attr("name").to_owned(),
+        enabled: item.attr_bool("enabled"),
+        action: shortcode(item.attr("action"))?,
+        matching: shortcode(item.attr("match"))?,
+        option: shortcode(item.attr("option")).unwrap_or_default(),
+        anime_ids: item
+            .children_named("anime")
+            .map(|a| a.attr_int("id") as i32)
+            .filter(|&id| id != 0)
+            .collect(),
+        conditions,
+    })
 }
 
 fn read_anime_settings(settings: &Element) -> Vec<AnimeSettings> {
@@ -508,6 +653,17 @@ mod tests {
     <proxy host="socks5://proxy.local:1080" username="u" password="p" />
   </program>
   <announce><discord enabled="true" /><mirc channels="&#03;4#anime" /></announce>
+  <rss><torrent>
+    <source address="https://nyaa.si/?page=rss" />
+    <options autocheck="true" checkinterval="30" newaction="2" downloadsortorder="descending" />
+    <application mode="2" open="true" path="C:\qbittorrent.exe" />
+    <filter enabled="true" archive_maxcount="500">
+      <item action="prefer" match="all" option="default" enabled="true" name="[Fansub] One Piece">
+        <anime id="21" /><condition element="episode_group" operator="equals" value="Erai-raws" />
+      </item>
+      <item action="explode" match="all" option="default" enabled="true" name="Broken" />
+    </filter>
+  </torrent></rss>
 </settings>"#,
         );
         write(
@@ -632,6 +788,16 @@ mod tests {
         assert_eq!(s["network.proxy.type"], "socks5");
         assert_eq!(s["network.proxy.host"], "proxy.local");
         assert_eq!(s["network.proxy.port"], 1080);
+        assert_eq!(s["torrents.source"], "https://nyaa.si/?page=rss");
+        assert_eq!(s["torrents.autoCheck.interval"], 30);
+        assert_eq!(s["torrents.autoCheck.action"], "download");
+        assert_eq!(s["torrents.download.descending"], true);
+        assert_eq!(s["torrents.app.mode"], "custom");
+        assert_eq!(s["torrents.filter.archiveMaxCount"], 500);
+        let filters = s["torrents.filters"].as_array().unwrap();
+        assert_eq!(filters.len(), 1, "the broken filter is skipped");
+        assert_eq!(filters[0]["animeIds"], json!([21]));
+        assert_eq!(filters[0]["conditions"][0]["element"], "episode_group");
         // Tokens are never imported.
         assert!(!serde_json::to_string(s).unwrap().contains("secret-token"));
         let _ = std::fs::remove_dir_all(&dir);

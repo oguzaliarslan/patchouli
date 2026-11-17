@@ -47,6 +47,26 @@ export interface Settings {
   "track.update.libraryOnly": boolean;
   "track.update.pauseWhenUnfocused": boolean;
   "track.update.trigger": "afterDelay" | "onPlayerClose";
+  "torrents.source": string;
+  "torrents.searchUrl": string;
+  "torrents.autoCheck.enabled": boolean;
+  /** Minutes. */
+  "torrents.autoCheck.interval": number;
+  "torrents.autoCheck.action": "notify" | "download";
+  "torrents.app.mode": "default" | "custom";
+  "torrents.app.open": boolean;
+  "torrents.app.path": string;
+  "torrents.download.fileFolder": string;
+  "torrents.download.useAnimeFolder": boolean;
+  "torrents.download.fallbackToFolder": boolean;
+  "torrents.download.folder": string;
+  "torrents.download.createSubfolder": boolean;
+  "torrents.download.sortBy": "episodeNumber" | "releaseDate";
+  "torrents.download.descending": boolean;
+  "torrents.download.useMagnet": boolean;
+  "torrents.filter.enabled": boolean;
+  "torrents.filter.archiveMaxCount": number;
+  "torrents.filters": FeedFilter[];
   [key: string]: unknown;
 }
 
@@ -60,6 +80,9 @@ export interface AccountStatus {
   /** `POINT_100`, `POINT_10_DECIMAL`, `POINT_10`, `POINT_5` or `POINT_3`. */
   scoreFormat: string | null;
   username: string | null;
+  avatarUrl: string | null;
+  /** The user's page on the service. */
+  profileUrl: string | null;
   /** The selected service, whose list is shown. */
   current: boolean;
   connected: boolean;
@@ -288,6 +311,124 @@ export interface TaigaSummary {
   warnings: string[];
 }
 
+export type FilterElement =
+  | "meta_id"
+  | "meta_status"
+  | "meta_type"
+  | "meta_episodes"
+  | "meta_date_start"
+  | "meta_date_end"
+  | "user_tags"
+  | "user_status"
+  | "local_episode_available"
+  | "episode_title"
+  | "episode_number"
+  | "episode_version"
+  | "episode_group"
+  | "episode_video_resolution"
+  | "episode_video_type"
+  | "file_title"
+  | "file_category"
+  | "file_description"
+  | "file_link"
+  | "file_size";
+
+export type FilterOperator =
+  | "equals"
+  | "notequals"
+  | "gt"
+  | "ge"
+  | "lt"
+  | "le"
+  | "beginswith"
+  | "endswith"
+  | "contains"
+  | "notcontains";
+
+export interface FilterCondition {
+  element: FilterElement;
+  operator: FilterOperator;
+  value: string;
+}
+
+/** A torrent filter, in Taiga's shortcodes. */
+export interface FeedFilter {
+  name: string;
+  enabled: boolean;
+  action: "discard" | "select" | "prefer";
+  match: "all" | "any";
+  option: "default" | "deactivate" | "hide";
+  /** Only these anime; all if empty. */
+  animeIds: number[];
+  conditions: FilterCondition[];
+}
+
+export interface FilterPreset {
+  description: string;
+  isDefault: boolean;
+  filter: FeedFilter;
+}
+
+export type FeedItemState = "blank" | "discardedNormal" | "discardedInactive" | "discardedHidden" | "selected";
+
+export interface FeedItem {
+  title: string;
+  link: string;
+  description: string;
+  category: "Anime" | "Batch" | "Other";
+  sourceCategory: string;
+  guid: string;
+  pubDate: string;
+  pubTime: number;
+  infoLink: string;
+  magnetLink: string;
+  fileSize: number;
+  seeders: number | null;
+  leechers: number | null;
+  downloads: number | null;
+  state: FeedItemState;
+  animeId: number | null;
+  newEpisode: boolean;
+  episode: {
+    title: string;
+    number: string;
+    version: number;
+    group: string;
+    resolution: string;
+    video: string;
+  };
+}
+
+export interface Feed {
+  url: string;
+  title: string;
+  items: FeedItem[];
+}
+
+export interface DownloadResult {
+  downloaded: string[];
+  errors: string[];
+}
+
+export interface Stats {
+  animeCount: number;
+  /** Counting rewatches. */
+  episodeCount: number;
+  secondsWatched: number;
+  secondsPlanned: number;
+  /** 0–100. */
+  meanScore: number;
+  scoreDeviation: number;
+  /** Index n: scores from n×10 to n×10+9 (index 10: 100). */
+  scoreCounts: number[];
+  statusCounts: Partial<Record<ListStatus, number>>;
+  typeCounts: Partial<Record<AnimeType, number>>;
+  topGenres: [string, number][];
+  historyCount: number;
+  /** `YYYY-MM` and episodes watched, oldest first. */
+  historyByMonth: [string, number][];
+}
+
 /** What commands reject with. */
 export interface CommandError {
   code: string | null;
@@ -360,6 +501,25 @@ export const api = {
   taigaImport: (path: string | null, replaceLocal = false) =>
     invoke<TaigaSummary>("taiga_import", { path, replaceLocal }),
   taigaDismiss: () => invoke<void>("taiga_dismiss"),
+
+  season: (season: string, year: number) => invoke<Anime[]>("season_get", { season, year }),
+  stats: () => invoke<Stats>("stats_get"),
+  /** Fetches the account again (name, picture). */
+  refreshProfile: () => invoke<AccountStatus>("profile_refresh"),
+
+  torrents: () => invoke<Feed | null>("torrents_get"),
+  /** Checks `url`, or the feed in settings. */
+  checkTorrents: (url: string | null = null) => invoke<Feed>("torrents_check", { url }),
+  searchTorrents: (text: string) => invoke<Feed>("torrents_search", { text }),
+  setTorrentState: (link: string, selected: boolean) =>
+    invoke<Feed | null>("torrents_set_state", { link, selected }),
+  /** Downloads the given links, or every selected item if empty. */
+  downloadTorrents: (links: string[] = []) => invoke<DownloadResult>("torrents_download", { links }),
+  filterPresets: () => invoke<FilterPreset[]>("torrents_presets"),
+  torrentArchive: () => invoke<{ count: number }>("torrents_archive_info"),
+  clearTorrentArchive: () => invoke<void>("torrents_archive_clear"),
+  onTorrents: (handler: (feed: Feed) => void): Promise<UnlistenFn> =>
+    listen<Feed>("torrents", (event) => handler(event.payload)),
 
   tracking: () => invoke<TrackingState>("tracking_get"),
   acceptUpdate: () => invoke<UpdateState>("update_accept"),

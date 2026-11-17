@@ -252,10 +252,12 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 - [ ] Crash/panic reporting (local log, opt-in upload)
 - [ ] Beta with power users, compare recognition accuracy against Taiga
 
-### Phase 9 (later): v1 feature parity and cross-platform
-- Torrents/RSS feed aggregator + filters (v1 `track/feed*`, about 1.9k LOC)
-- Seasonal anime browser, stats page, Profile page
-- Linux detection (MPRIS over D-Bus via `zbus`) and macOS detection (AppleScript/Accessibility)
+### Phase 9: v1 feature parity and cross-platform ✅ (done before phase 8)
+- [x] Torrents (`crates/feed`, port of v1 `track/feed*`): RSS 2.0 with each site's quirks (Tokyo Toshokan, Nyaa, AnimeTosho, AniDex, ACG.RIP/acgnx, SubsPlease, AnimeBytes, Minglong, NyaaPantsu), recognition and categories, Taiga's filter engine (conditions, `%watched%`-style variables, select/discard/prefer with strong and weak preferences), its 10 presets and 6 default filters, the download archive, downloads with `.torrent` validation or magnet links, BitTorrent client arguments (aria2, Deluge, PicoTorrent, qBittorrent, Transmission, µTorrent), automatic checks with notify or download. Filters are stored in `settings.json` (`torrents.filters`, Taiga's shortcodes); v1 `settings.xml` torrent settings and filters are imported. Checked against live Tokyo Toshokan and Nyaa feeds
+- [x] Seasons page: every anime of a season from AniList (all pages) or MyAnimeList, grouped by type, sortable
+- [x] Profile page: account picture and link, Taiga's statistics (time watched and left, mean score and deviation, score distribution) plus status, type, genre and monthly history breakdowns
+- [x] Linux detection: MPRIS over D-Bus (`zbus`), `xesam:url`/`xesam:title`; browsers report URL and title. macOS detection: AppleScript for VLC, QuickTime Player, Safari and Chromium browsers that are already running (IINA, mpv and Firefox have no AppleScript). **Compile-checked (`cargo clippy --target x86_64-unknown-linux-gnu` / `aarch64-apple-darwin`) and unit-tested, not yet run on those systems.** "Pause when unfocused" is Windows-only
+- [ ] Linux/macOS builds of the whole app (keyring backends, bundling) belong with phase 8
 
 **Rough total for a Windows MVP (phases 0–8): about 4–6 months for one developer, or about 3 months for two.**
 

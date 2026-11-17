@@ -86,6 +86,9 @@ pub struct AccountStatus {
     /// `POINT_10`, `POINT_5` or `POINT_3`.
     score_format: Option<String>,
     username: Option<String>,
+    avatar_url: Option<String>,
+    /// The user's page on the service.
+    profile_url: Option<String>,
     /// The selected service, whose list is shown.
     current: bool,
     /// Logged in with a working session.
@@ -104,6 +107,11 @@ fn status(state: &AppState, service: ServiceId) -> AccountStatus {
             ServiceId::MyAnimeList => Some("POINT_10".into()),
             _ => account.as_ref().and_then(|a| a.score_format.clone()),
         },
+        avatar_url: account.as_ref().and_then(|a| a.avatar_url.clone()),
+        profile_url: account.as_ref().map(|a| match service {
+            ServiceId::MyAnimeList => format!("https://myanimelist.net/profile/{}", a.username),
+            _ => format!("https://anilist.co/user/{}/", a.username),
+        }),
         username: account.map(|a| a.username),
         current,
         connected: current
@@ -192,6 +200,18 @@ pub fn account_logout(
     {
         state.sync.set_session(None);
     }
+    Ok(status(&state, service))
+}
+
+/// Fetches the account again (name, picture, score format).
+#[tauri::command]
+pub async fn profile_refresh(state: State<'_, AppState>) -> CommandResult<AccountStatus> {
+    let (client, _) = state
+        .sync
+        .session()
+        .ok_or(tracker_sync::Error::NotLoggedIn)?;
+    let service = client.service();
+    state.accounts.set(service, client.user().await?)?;
     Ok(status(&state, service))
 }
 

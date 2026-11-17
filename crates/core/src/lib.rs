@@ -20,6 +20,7 @@ macro_rules! int_enum {
 
 pub mod anime;
 pub mod date;
+pub mod feed;
 pub mod history;
 pub mod list;
 pub mod queue;

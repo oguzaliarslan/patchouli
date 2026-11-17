@@ -9,7 +9,8 @@ import {
   type Settings,
   type SharingStatus,
 } from "../api";
-import { Toggle } from "../components/inputs";
+import { Field, LazyInput, Toggle } from "../components/inputs";
+import { TorrentsSection } from "./TorrentSettings";
 import { useApp } from "../lib/context";
 import { usePref } from "../lib/prefs";
 import { keys, queryClient, useAccounts, useAppInfo, usePlayers, useSettings, useTaigaDetection, useUpdateSettings } from "../lib/queries";
@@ -24,12 +25,13 @@ const SECTIONS = [
   ["players", "Media players"],
   ["streaming", "Streaming"],
   ["sharing", "Sharing"],
+  ["torrents", "Torrents"],
   ["advanced", "Advanced"],
 ] as const;
 
 type Section = (typeof SECTIONS)[number][0];
 
-type Change = <K extends keyof Settings>(key: K, value: Settings[K]) => void;
+export type Change = <K extends keyof Settings>(key: K, value: Settings[K]) => void;
 
 export function SettingsPage() {
   const [section, setSection] = usePref<Section>("settings.section", "application");
@@ -72,6 +74,7 @@ export function SettingsPage() {
               {section === "players" && <PlayersSection settings={settings} change={change} />}
               {section === "streaming" && <StreamingSection settings={settings} change={change} />}
               {section === "sharing" && <SharingSection settings={settings} change={change} />}
+              {section === "torrents" && <TorrentsSection settings={settings} change={change} />}
               {section === "advanced" && <AdvancedSection settings={settings} change={change} />}
             </>
           )}
@@ -81,50 +84,9 @@ export function SettingsPage() {
   );
 }
 
-interface SectionProps {
+export interface SectionProps {
   settings: Settings;
   change: Change;
-}
-
-function Field({ label, htmlFor, hint, children }: { label: string; htmlFor?: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div className="field">
-      <label htmlFor={htmlFor}>{label}</label>
-      <div>
-        {children}
-        {hint && <small className="muted">{hint}</small>}
-      </div>
-    </div>
-  );
-}
-
-/** A text input that saves when it loses focus or Enter is pressed. */
-function LazyInput({
-  id,
-  value,
-  onCommit,
-  type = "text",
-  placeholder,
-}: {
-  id?: string;
-  value: string;
-  onCommit: (value: string) => void;
-  type?: string;
-  placeholder?: string;
-}) {
-  const [text, setText] = useState(value);
-  useEffect(() => setText(value), [value]);
-  return (
-    <input
-      id={id}
-      type={type}
-      value={text}
-      placeholder={placeholder}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={() => text !== value && onCommit(text)}
-      onKeyDown={(e) => e.key === "Enter" && text !== value && onCommit(text)}
-    />
-  );
 }
 
 function ApplicationSection({ settings, change }: SectionProps) {

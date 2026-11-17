@@ -156,7 +156,9 @@ pub fn start(app: &AppHandle) {
 
 fn poll(app: &AppHandle, state: &AppState, settings: &Settings) {
     let players = state.tracker.enabled_players(settings);
-    let detections = tracker_detect::detect(&players);
+    let mut detections = tracker_detect::detect(&players);
+    // Linux and macOS find players without the player list.
+    detections.retain(|d| !settings.disabled_players.contains(&d.player));
     let previous = *lock(&state.tracker.window);
     let folders = &settings.library_folders;
     let found = pick(&detections, previous).and_then(|d| resolve(d, folders).map(|r| (d, r)));

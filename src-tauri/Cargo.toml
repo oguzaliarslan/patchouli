@@ -39,3 +39,4 @@ tracker-detect.workspace = true
 tracker-track.workspace = true
 tracker-share.workspace = true
 tracker-compat.workspace = true
+tracker-feed.workspace = true

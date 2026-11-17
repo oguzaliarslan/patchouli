@@ -12,12 +12,13 @@ crates/
   db/           SQLite storage: migrations and per-table repositories (opens Taiga v2 databases)
   settings/     settings.json store (Taiga v2 format) with change notifications
   anitomy/      filename parser, a port of Anitomy checked against the C++ library
-  detect/       media player detection on Windows, a port of Anisthesia
+  detect/       media player detection (Windows: a port of Anisthesia; Linux: MPRIS; macOS: AppleScript)
   recognition/  title normalisation and matching, anime-relations, library scanning
   track/        what's playing and when to update the list
   sync/         AniList and MyAnimeList clients, browser login, update queue
   share/        Discord Rich Presence and the sharing webhook
   compat/       Taiga v1/v2 data importers
+  feed/         torrent RSS feeds and filters (Taiga v1's Torrents)
 src-tauri/      Tauri app: wiring, commands, resources
 ui/             React + TypeScript + Vite frontend
 ```
@@ -103,6 +104,18 @@ Under *Rich Presence › Art Assets*, upload images named `default`, `anilist` a
 ## Importing from Taiga
 
 If Taiga's data is found (`%APPDATA%\erengy\taiga\data` for Taiga 2, `%APPDATA%\Taiga\data` for Taiga 1.x) and the list is empty, Home offers to import it. Otherwise use *Settings › Advanced › Import from Taiga*, which also accepts a portable Taiga folder. The list, history, unsent changes, per-anime settings and settings are imported; Taiga's files aren't changed. Logins aren't imported, so log in again afterwards.
+
+## Torrents
+
+*Torrents* checks an RSS feed (Tokyo Toshokan by default; set it in *Settings › Torrents*) or searches Nyaa, recognises each release and runs Taiga's filters: by default new episodes of anime you're watching are selected, and dropped, unlisted, watched and already-downloaded ones are discarded, preferring 1080p. *Download selected* saves the `.torrent` files (or opens magnet links) and opens them with your BitTorrent client, telling known clients to save into the anime's folder. Automatic checks are off until you turn them on.
+
+## Seasons and profile
+
+*Seasons* lists a season's anime from your list service. *Profile* shows your account and list statistics.
+
+## Other platforms
+
+Player detection on Linux uses MPRIS (mpv needs the `mpv-mpris` script), and on macOS asks VLC, QuickTime Player, Safari and Chromium browsers through AppleScript. Both are compile-checked from Windows but not yet tested on those systems.
 
 ## Logs
 

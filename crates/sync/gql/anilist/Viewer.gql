@@ -2,6 +2,9 @@
   Viewer {
     id
     name
+    avatar {
+      large
+    }
     mediaListOptions {
       scoreFormat
     }

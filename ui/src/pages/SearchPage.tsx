@@ -151,7 +151,7 @@ export function SearchPage() {
   );
 }
 
-function ResultCard({
+export function ResultCard({
   anime,
   title,
   status,

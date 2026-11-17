@@ -120,3 +120,44 @@ export function Toggle({
     </label>
   );
 }
+
+export function Field({ label, htmlFor, hint, children }: { label: string; htmlFor?: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="field">
+      <label htmlFor={htmlFor}>{label}</label>
+      <div>
+        {children}
+        {hint && <small className="muted">{hint}</small>}
+      </div>
+    </div>
+  );
+}
+
+/** A text input that saves when it loses focus or Enter is pressed. */
+export function LazyInput({
+  id,
+  value,
+  onCommit,
+  type = "text",
+  placeholder,
+}: {
+  id?: string;
+  value: string;
+  onCommit: (value: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  const [text, setText] = useState(value);
+  useEffect(() => setText(value), [value]);
+  return (
+    <input
+      id={id}
+      type={type}
+      value={text}
+      placeholder={placeholder}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => text !== value && onCommit(text)}
+      onKeyDown={(e) => e.key === "Enter" && text !== value && onCommit(text)}
+    />
+  );
+}

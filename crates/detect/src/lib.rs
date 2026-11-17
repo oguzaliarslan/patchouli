@@ -8,11 +8,15 @@
 //! - `open_files`: files the player process has open
 //! - `ui_automation`: a browser's address bar, tabs and title
 //!
-//! On other platforms [`detect`] returns nothing.
+//! Linux uses MPRIS over D-Bus ([`mpris`]) and macOS asks players through
+//! AppleScript ([`mac`]); neither reports the focused window, so "pause when
+//! unfocused" only works on Windows.
 //!
 //! [erengy/anisthesia]: https://github.com/erengy/anisthesia
 
+pub mod mac;
 pub mod matching;
+pub mod mpris;
 pub mod players;
 #[cfg(windows)]
 mod win;
@@ -59,7 +63,19 @@ pub fn detect(players: &[Player]) -> Vec<Detection> {
     {
         win::detect(players)
     }
-    #[cfg(not(windows))]
+    // The player list describes Windows players; elsewhere players are found
+    // by other means.
+    #[cfg(target_os = "linux")]
+    {
+        let _ = players;
+        mpris::detect()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = players;
+        mac::detect()
+    }
+    #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
     {
         let _ = players;
         Vec::new()
