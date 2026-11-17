@@ -10,18 +10,11 @@ publish = false
 # License pending (see MIGRATION_PLAN.md §3). Files vendored from Taiga are GPL-3.0.
 
 [workspace.dependencies]
-tracker-core = { path = "crates/core" }
+# Cargo warns about unused entries here, so add each crate (e.g.
+# `tracker-sync = { path = "crates/sync" }`) once something depends on it.
 tracker-db = { path = "crates/db" }
-tracker-anitomy = { path = "crates/anitomy" }
-tracker-detect = { path = "crates/detect" }
-tracker-recognition = { path = "crates/recognition" }
-tracker-track = { path = "crates/track" }
-tracker-sync = { path = "crates/sync" }
-tracker-share = { path = "crates/share" }
-tracker-compat = { path = "crates/compat" }
 
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 bitflags = { version = "2", features = ["serde"] }
 rusqlite = { version = "0.37", features = ["bundled"] }
 

@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 ///
 /// TODO(phase 1): match the string format of Taiga's `base::FuzzyDate::toString`
 /// (`src/base/chrono.cpp`) so existing databases import correctly.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub struct FuzzyDate {
     pub year: u16,
     pub month: u8,

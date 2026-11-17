@@ -13,7 +13,10 @@ pub const SCHEMA: &[(&str, &str)] = &[
     ("meta", include_str!("../sql/createMeta.sql")),
     ("anime", include_str!("../sql/createAnime.sql")),
     ("anime_list", include_str!("../sql/createAnimeList.sql")),
-    ("anime_settings", include_str!("../sql/createAnimeSettings.sql")),
+    (
+        "anime_settings",
+        include_str!("../sql/createAnimeSettings.sql"),
+    ),
     ("history", include_str!("../sql/createHistory.sql")),
     ("queue", include_str!("../sql/createQueue.sql")),
 ];

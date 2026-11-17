@@ -18,14 +18,6 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
 serde.workspace = true
-serde_json.workspace = true
 
-tracker-core.workspace = true
+# Add the other workspace crates here as the app starts using them.
 tracker-db.workspace = true
-tracker-anitomy.workspace = true
-tracker-detect.workspace = true
-tracker-recognition.workspace = true
-tracker-track.workspace = true
-tracker-sync.workspace = true
-tracker-share.workspace = true
-tracker-compat.workspace = true
