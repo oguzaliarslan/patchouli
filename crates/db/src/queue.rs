@@ -1,6 +1,6 @@
 //! Pending list updates (`queue` table), oldest first.
 
-use rusqlite::{Connection, Row, named_params};
+use rusqlite::{Connection, OptionalExtension, Row, named_params};
 use tracker_core::{Fields, QueueItem};
 
 use crate::Result;
@@ -12,6 +12,16 @@ pub fn all(conn: &Connection) -> Result<Vec<QueueItem>> {
     let mut stmt = conn.prepare("SELECT * FROM queue ORDER BY time ASC")?;
     let rows = stmt.query_map([], from_row)?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+pub fn get(conn: &Connection, anime_id: i32) -> Result<Option<QueueItem>> {
+    Ok(conn
+        .query_row(
+            "SELECT * FROM queue WHERE anime_id = ?1",
+            [anime_id],
+            from_row,
+        )
+        .optional()?)
 }
 
 /// Inserts or replaces the item for `item.anime_id`.

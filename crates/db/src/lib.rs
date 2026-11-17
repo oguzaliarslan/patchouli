@@ -86,6 +86,28 @@ fn configure(conn: &mut Connection) -> Result<()> {
     migrations::run(conn)
 }
 
+/// Deletes anime, list entries, per-anime settings, history and the queue.
+///
+/// Anime IDs differ between services, so this is needed before data from
+/// another service can be loaded. `meta` is kept.
+pub fn clear_service_data(conn: &Connection) -> Result<()> {
+    let tx = conn.unchecked_transaction()?;
+    for table in ["anime", "anime_list", "anime_settings", "history", "queue"] {
+        tx.execute(&format!("DELETE FROM {table}"), [])?;
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+/// Whether the database holds a list or unsent changes.
+pub fn has_list_data(conn: &Connection) -> Result<bool> {
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM anime_list) OR EXISTS(SELECT 1 FROM queue)",
+        [],
+        |row| row.get(0),
+    )?)
+}
+
 /// Names of the user tables in the database, sorted.
 pub fn table_names(conn: &Connection) -> Result<Vec<String>> {
     let mut stmt = conn.prepare(
@@ -113,6 +135,30 @@ mod tests {
                 "meta",
                 "queue"
             ]
+        );
+    }
+
+    #[test]
+    fn clear_service_data_keeps_meta() {
+        let conn = open_in_memory().unwrap();
+        meta::set(&conn, "service", "anilist").unwrap();
+        list::upsert(
+            &conn,
+            &tracker_core::ListEntry {
+                anime_id: 1,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        history::add(&conn, 1, 1, 0).unwrap();
+        assert!(has_list_data(&conn).unwrap());
+
+        clear_service_data(&conn).unwrap();
+        assert!(!has_list_data(&conn).unwrap());
+        assert!(history::all(&conn).unwrap().is_empty());
+        assert_eq!(
+            meta::get(&conn, "service").unwrap().as_deref(),
+            Some("anilist")
         );
     }
 

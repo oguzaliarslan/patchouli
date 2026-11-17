@@ -1,26 +1,37 @@
+mod credentials;
 mod error;
 mod paths;
+mod sync;
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tracker_db::{anime, history, list, meta, migrations, queue};
 use tracker_settings::{Settings, SettingsStore};
+use tracker_sync::oauth::OAuthConfig;
+use tracker_sync::{AccountsFile, Synchronizer};
 
+use crate::credentials::KeyringStore;
 use crate::error::CommandResult;
 
 /// Event emitted with the changed setting keys (`string[]`).
 const SETTINGS_CHANGED: &str = "settings-changed";
 
-/// Shared backend state. Grows into the sync manager, detector, etc.
-struct AppState {
+/// Shared backend state.
+pub(crate) struct AppState {
     data_dir: PathBuf,
     portable: bool,
-    db: Mutex<tracker_db::Connection>,
-    settings: SettingsStore,
+    db: Arc<Mutex<tracker_db::Connection>>,
+    settings: Arc<SettingsStore>,
+    accounts: AccountsFile,
+    credentials: Arc<KeyringStore>,
+    oauth: OAuthConfig,
+    sync: Arc<Synchronizer>,
+    /// Held while a login is in progress.
+    login: tokio::sync::Mutex<()>,
 }
 
 #[derive(Serialize)]
@@ -79,13 +90,35 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
 
     let db = tracker_db::open(data_dir.path.join(tracker_db::FILE_NAME))?;
     meta::set(&db, "version", &version)?;
+    let db = Arc::new(Mutex::new(db));
+
+    let handle = app.clone();
+    let sync = Synchronizer::new(Arc::clone(&db), move |event| {
+        let _ = handle.emit(sync::SYNC_EVENT, event);
+    });
 
     Ok(AppState {
+        accounts: AccountsFile::load(data_dir.path.join(tracker_sync::accounts::FILE_NAME)),
+        credentials: Arc::new(KeyringStore::new(app.config().identifier.clone())),
+        oauth: OAuthConfig::from_env(),
         data_dir: data_dir.path,
         portable: data_dir.portable,
-        db: Mutex::new(db),
-        settings,
+        db,
+        settings: Arc::new(settings),
+        sync: Arc::new(sync),
+        login: tokio::sync::Mutex::new(()),
     })
+}
+
+/// Restores the login, syncs once, and keeps sending queued changes.
+fn start_sync(app: &AppHandle, state: &AppState) {
+    sync::restore_session(state);
+    let settings = Arc::clone(&state.settings);
+    if state.sync.is_logged_in() && settings.get().sync_enabled {
+        sync::spawn_synchronize(app, Arc::clone(&state.sync));
+    }
+    let background = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn(background.run_background(move || settings.get().sync_enabled));
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -102,13 +135,23 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let state = init_state(app.handle())?;
+            start_sync(app.handle(), &state);
             app.manage(state);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             app_info,
             settings_get,
-            settings_set
+            settings_set,
+            sync::accounts_get,
+            sync::account_login,
+            sync::account_logout,
+            sync::sync_now,
+            sync::list_get,
+            sync::list_save_entry,
+            sync::list_remove_entry,
+            sync::queue_get,
+            sync::anime_search,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

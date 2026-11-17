@@ -18,7 +18,11 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
 serde.workspace = true
+tokio.workspace = true
+keyring.workspace = true
 
 # Add the other workspace crates here as the app starts using them.
+tracker-core.workspace = true
 tracker-db.workspace = true
 tracker-settings.workspace = true
+tracker-sync.workspace = true

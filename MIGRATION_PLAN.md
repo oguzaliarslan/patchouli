@@ -182,15 +182,16 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 - [x] Data path: portable mode (a `portable` file next to the exe) vs `%APPDATA%`
 - **Exit:** repository round-trip tests pass, and a sample DB loads (`crates/db/tests/taiga_v2.rs` builds a database the way Taiga writes it)
 
-### Phase 2: Sync services (3–4 weeks)
-- [ ] `trait SyncService { authenticate, fetch_anime, search, fetch_list, add/update/delete_entry, anime_page_url }`
-- [ ] **AniList**: GraphQL with the existing `.gql` files, rating-system conversion (`anilist_ratings`), error mapping
-- [ ] **MyAnimeList**: REST v2, PKCE, refresh-on-401, paged list fetch with `prune_missing_entries`
-- [ ] **Kitsu**: JSON:API, password grant + refresh, user resolve, rating systems
-- [ ] **Queue**: port `sync/queue.cpp`, including dirty-field merge, `modifiedWhileProcessing`, reconcile with the remote entry, retry/backoff, auth-gated pausing
-- [ ] Auth UX via deep links or a loopback server. Tokens go in the keychain
+### Phase 2: Sync services (3–4 weeks), AniList and MyAnimeList ✅
+- [x] Service client (`tracker_sync::Client`, an enum rather than a trait object since the methods are async): user, fetch_anime, search, fetch_list, save/delete entry, anime_page_url
+- [x] **AniList**: GraphQL with the existing `.gql` files, error mapping, duplicate entries from custom lists skipped. Rating-system display (`anilist_ratings`) is left to the phase 3 UI; scores are stored 0–100 and the account's score format is saved
+- [x] **MyAnimeList**: REST v2, PKCE, refresh-on-401 (refreshed tokens saved), paged list fetch with pruning
+- [ ] **Kitsu**: deferred
+- [x] **Queue**: port of `sync/queue.cpp`, including dirty-field merge, `modifiedWhileProcessing`, reconcile with the remote entry, retry count and last error, 10 s debounce and 5 min retry. Fetching skips entries with unsent changes (Taiga could overwrite them)
+- [x] Auth via a loopback server (`http://localhost:47312/callback/<service>`). Tokens in Windows Credential Manager, split into chunks because an entry holds at most 1280 characters
+- [x] The local list belongs to one service (`meta.service`); logging in to the other asks before replacing it
 - [ ] Proxy support (`network.proxy.*`)
-- **Exit:** integration tests against recorded fixtures (`wiremock`), plus manual login and list sync on all three services
+- **Exit:** integration tests against `wiremock` pass. Manual login and sync need registered client IDs (see README)
 
 ### Phase 3: UI foundation (3–4 weeks, can run in parallel)
 - [ ] App shell: sidebar navigation (Home, Search, List, History, Library), status bar, now-playing bar

@@ -15,7 +15,7 @@ crates/
   detect/       media player detection (phase 5)
   recognition/  title matching, anime-relations, library scan (phase 4)
   track/        update decision and session state machine (phase 5)
-  sync/         AniList / MAL / Kitsu clients and update queue (phase 2)
+  sync/         AniList and MyAnimeList clients, browser login, update queue
   share/        Discord presence and webhook (phase 6)
   compat/       Taiga data importers (phase 7)
 src-tauri/      Tauri app: wiring, commands, resources
@@ -49,4 +49,33 @@ npm run build
 
 `npm run dev` starts Vite on port 1420 and opens the Tauri window.
 
-Data (`media.sqlite`, `settings.json`) goes in `%APPDATA%\app.tracker.desktop`. To run in portable mode, put an empty file named `portable` next to the executable, and data goes in `data\` beside it instead. `npm run build` produces an NSIS installer in `target/release/bundle/nsis/`.
+## Logging in to AniList and MyAnimeList
+
+Taiga's client IDs belong to Taiga, so register your own app with each service and give the app its client ID:
+
+| Service | Register at | Redirect URL |
+|---|---|---|
+| AniList | <https://anilist.co/settings/developer> | `http://localhost:47312/callback/anilist` |
+| MyAnimeList | <https://myanimelist.net/apiconfig> (App Type: *other*) | `http://localhost:47312/callback/myanimelist` |
+
+Then set the client IDs as environment variables, either when running the app or when building it (to bake them in):
+
+```powershell
+$env:TRACKER_ANILIST_CLIENT_ID = "12345"
+$env:TRACKER_MAL_CLIENT_ID = "abcdef0123456789"
+npm run dev
+```
+
+`TRACKER_OAUTH_PORT` changes the redirect port (47312 by default); the redirect URLs registered with the services must match it. No client secrets are needed: AniList uses the implicit grant and MyAnimeList uses PKCE.
+
+Tokens are kept in Windows Credential Manager (under `app.tracker.desktop`), not in the data folder. AniList and MyAnimeList use different anime IDs, so the local list belongs to one service at a time; logging in to the other one asks before replacing it.
+
+To run the test that writes to the real credential store:
+
+```bash
+cargo test -p tracker-app -- --ignored
+```
+
+## Data
+
+Data (`media.sqlite`, `settings.json`, `accounts.json`) goes in `%APPDATA%\app.tracker.desktop`. To run in portable mode, put an empty file named `portable` next to the executable, and data goes in `data\` beside it instead. `npm run build` produces an NSIS installer in `target/release/bundle/nsis/`.
