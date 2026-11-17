@@ -1,0 +1,12 @@
+[package]
+name = "patchouli-settings"
+description = "Application settings stored in settings.json (Taiga v2 compatible)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+patchouli-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,68 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+# License pending (see MIGRATION_PLAN.md §3). Files vendored from Taiga are GPL-3.0.
+
+[workspace.dependencies]
+# Cargo warns about unused entries here, so add each crate (e.g.
+# `patchouli-sync = { path = "crates/sync" }`) once something depends on it.
+patchouli-core = { path = "crates/core" }
+patchouli-db = { path = "crates/db" }
+patchouli-settings = { path = "crates/settings" }
+patchouli-sync = { path = "crates/sync" }
+patchouli-anitomy = { path = "crates/anitomy" }
+patchouli-recognition = { path = "crates/recognition" }
+patchouli-detect = { path = "crates/detect" }
+patchouli-track = { path = "crates/track" }
+patchouli-share = { path = "crates/share" }
+patchouli-compat = { path = "crates/compat" }
+patchouli-feed = { path = "crates/feed" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bitflags = { version = "2", features = ["serde"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
+regex = "1"
+unicode-normalization = "0.1"
+unicode-general-category = "1"
+caseless = "0.2"
+walkdir = "2"
+log = "0.4"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Win32_System_Ole",
+  "Win32_System_Threading",
+  "Win32_System_Variant",
+  "Win32_UI_Accessibility",
+  "Win32_UI_WindowsAndMessaging",
+] }
+# native-tls (Schannel on Windows) instead of the default rustls/aws-lc stack,
+# which needs extra build tools on Windows.
+reqwest = { version = "0.13", default-features = false, features = [
+  "native-tls",
+  "charset",
+  "http2",
+  "system-proxy",
+  "json",
+  "form",
+  "query",
+] }
+tokio = { version = "1", features = ["sync", "time", "net", "io-util", "macros", "rt"] }
+getrandom = "0.3"
+keyring = { version = "3", features = ["windows-native", "apple-native"] }
+wiremock = "0.6"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

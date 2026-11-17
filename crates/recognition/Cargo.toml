@@ -1,0 +1,18 @@
+[package]
+name = "patchouli-recognition"
+description = "Title normalisation, matching, anime-relations, library scanning"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+patchouli-core.workspace = true
+patchouli-anitomy.workspace = true
+serde.workspace = true
+regex.workspace = true
+unicode-normalization.workspace = true
+unicode-general-category.workspace = true
+caseless.workspace = true
+walkdir.workspace = true
+getrandom.workspace = true
