@@ -231,12 +231,13 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 - [ ] Manual check with VLC, PotPlayer and Chrome/Edge (needs those players and a logged-in account)
 - **Exit:** watching a file updates the list end to end (done with the fake player; real players still to be tried by hand)
 
-### Phase 6: Sharing and polish (1–2 weeks)
-- [ ] Discord IPC client: handshake, framing, reconnect with backoff, `SET_ACTIVITY` (port `discord_rpc::toJson`, including field-length trimming and up to 2 buttons)
-- [ ] Webhook: keep the `share::toJson` v1 event schema (playing/stopped/updated, custom headers)
-- [ ] List export (`anime_list_export`: MAL XML etc.)
-- [ ] i18n: convert `resources/translations` to i18next JSON
-- [ ] Logging to `<data>/logs/<app>_<date>.log`, plus `--debug`/`--verbose` CLI flags
+### Phase 6: Sharing and polish (1–2 weeks) ✅
+- [x] Discord IPC client (`crates/share`): handshake, framing, ping/pong, reconnect with backoff (2 s doubling to 1 min), stop on invalid application ID, `SET_ACTIVITY` (port of `discord_rpc::toJson` with text trimming and up to 2 buttons). Tested against a fake Discord on a named pipe
+  - Needs our own Discord application ID (`TRACKER_DISCORD_APP_ID`); Taiga's would show "Taiga" on profiles
+- [x] Webhook: Taiga's v1 event schema (playing/stopped/updated, custom headers), 1.5 s debounce, private entries never shared. Verified end to end against a local listener
+- [x] List export (`anime_list_export`): Markdown and MyAnimeList XML
+- [ ] i18n: **not needed yet**. Taiga's `resources/translations` holds only English plural forms, so there's nothing to convert. Revisit when there are translators
+- [x] Logging to `<data>/logs/tracker_<date>.log`, plus `--debug`/`--verbose` CLI flags
 
 ### Phase 7: Data migration from Taiga (1 week)
 - [ ] Import from a Taiga **v2** SQLite DB + INI files

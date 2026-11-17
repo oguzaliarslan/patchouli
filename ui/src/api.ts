@@ -245,6 +245,13 @@ export interface UpdateState {
   paused: boolean;
 }
 
+export interface SharingStatus {
+  /** A Discord application ID is set (TRACKER_DISCORD_APP_ID). */
+  discordConfigured: boolean;
+  discord: "disabled" | "connecting" | "connected" | "invalidClientId";
+  webhookError: string | null;
+}
+
 export interface TrackingState {
   nowPlaying: NowPlaying | null;
   update: UpdateState;
@@ -316,6 +323,11 @@ export const api = {
     }),
   openFolder: (animeId: number) => invoke<string>("anime_open_folder", { animeId }),
   scanLibrary: () => invoke<LibraryView>("library_scan"),
+
+  sharingStatus: () => invoke<SharingStatus>("sharing_status"),
+  /** Writes the list to `path`; returns the number of entries. */
+  exportList: (format: "markdown" | "myAnimeListXml", path: string) =>
+    invoke<number>("list_export", { format, path }),
 
   tracking: () => invoke<TrackingState>("tracking_get"),
   acceptUpdate: () => invoke<UpdateState>("update_accept"),

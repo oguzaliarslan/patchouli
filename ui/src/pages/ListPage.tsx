@@ -1,9 +1,10 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ListItem, ListStatus } from "../api";
+import { save } from "@tauri-apps/plugin-dialog";
+import { api, errorMessage, type ListItem, type ListStatus } from "../api";
 import { Icon } from "../components/Icon";
 import { Poster } from "../components/Poster";
-import { useApp } from "../lib/context";
+import { useApp, type AppActions } from "../lib/context";
 import { withEpisodeWatched } from "../lib/entries";
 import {
   LIST_STATUSES,
@@ -47,6 +48,27 @@ const CARD_WIDTH = 168;
 /** Poster (2:3) plus progress, two title lines and a detail line. */
 const CARD_HEIGHT = Math.round(CARD_WIDTH * 1.5) + 76;
 const CARD_GAP = 16;
+
+/** Asks where to save, then writes the list (Taiga's export). */
+async function exportList(app: AppActions, format: "markdown" | "myAnimeListXml") {
+  const markdown = format === "markdown";
+  try {
+    const path = await save({
+      title: "Export list",
+      defaultPath: markdown ? "anime-list.md" : "animelist.xml",
+      filters: [
+        markdown
+          ? { name: "Markdown", extensions: ["md"] }
+          : { name: "MyAnimeList XML", extensions: ["xml"] },
+      ],
+    });
+    if (!path) return;
+    const count = await api.exportList(format, path);
+    app.notify(`Exported ${count} entries.`);
+  } catch (e) {
+    app.notify(errorMessage(e));
+  }
+}
 
 /** Fuzzy dates with unknown parts sort last, as in Taiga. */
 function compareDates(a: string, b: string): number {
@@ -179,6 +201,24 @@ export function ListPage() {
       <header className="page-header">
         <h1>Anime List</h1>
         <div className="page-actions">
+          <button
+            disabled={items.length === 0}
+            onClick={(e) =>
+              app.showMenu({
+                x: e.currentTarget.getBoundingClientRect().left,
+                y: e.currentTarget.getBoundingClientRect().bottom + 4,
+                items: [
+                  { label: "As Markdown…", onSelect: () => void exportList(app, "markdown") },
+                  {
+                    label: "As MyAnimeList XML…",
+                    onSelect: () => void exportList(app, "myAnimeListXml"),
+                  },
+                ],
+              })
+            }
+          >
+            Export
+          </button>
           <div className="segmented" role="group" aria-label="View">
             <button aria-pressed={view === "table"} title="Table" onClick={() => setView("table")}>
               <Icon name="rows" />

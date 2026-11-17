@@ -34,14 +34,14 @@ pub const UPDATE_STATE_EVENT: &str = "update-state";
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NowPlaying {
-    player: String,
-    browser: bool,
-    file: Option<String>,
-    title: String,
+    pub(crate) player: String,
+    pub(crate) browser: bool,
+    pub(crate) file: Option<String>,
+    pub(crate) title: String,
     /// Episode numbers after redirection (`["12"]`, `["1", "2"]`).
-    episodes: Vec<String>,
-    anime_id: Option<i32>,
-    elements: Vec<Element>,
+    pub(crate) episodes: Vec<String>,
+    pub(crate) anime_id: Option<i32>,
+    pub(crate) elements: Vec<Element>,
 }
 
 pub struct Tracker {
@@ -75,6 +75,10 @@ impl Tracker {
             now_playing: Mutex::new(None),
             window: Mutex::new(None),
         }
+    }
+
+    pub fn now_playing(&self) -> Option<NowPlaying> {
+        lock(&self.now_playing).clone()
     }
 
     /// Players to look for: not disabled, and browsers only with streaming on.
@@ -216,7 +220,18 @@ fn set_now_playing(app: &AppHandle, state: &AppState, playing: Option<(NowPlayin
         }
         *now = playing.as_ref().map(|(n, _)| n.clone());
     }
+    match &playing {
+        Some((n, _)) => log::info!(
+            "Now playing in {}: {} {:?} (anime {:?})",
+            n.player,
+            n.title,
+            n.episodes,
+            n.anime_id
+        ),
+        None => log::info!("Nothing playing"),
+    }
     let _ = app.emit(NOW_PLAYING_EVENT, playing.as_ref().map(|(n, _)| n));
+    crate::sharing::schedule_update(app);
     let effects =
         lock(&state.tracker.session).on_media_changed(playing.map(|(_, c)| c), &DbLibrary(state));
     handle_effects(app, state, effects);
@@ -227,6 +242,7 @@ fn handle_effects(app: &AppHandle, state: &AppState, effects: Vec<Effect>) {
         match effect {
             Effect::StateChanged(update) => {
                 let _ = app.emit(UPDATE_STATE_EVENT, update);
+                crate::sharing::on_update_state(app, state, update);
             }
             Effect::Commit { anime_id, episode } => commit(app, state, anime_id, episode),
             Effect::ConfirmationRequested(update) => notify_confirmation(app, state, update),
@@ -241,7 +257,9 @@ fn commit(app: &AppHandle, state: &AppState, anime_id: i32, episode: i32) {
     };
     let entry = library.entry(anime_id);
     let updated = entry_with_episode_watched(&item, entry.as_ref(), episode, today());
+    log::info!("Updating list: anime {anime_id}, episode {episode}");
     if let Err(error) = state.sync.save_entry(updated) {
+        log::warn!("Couldn't update the list: {error}");
         let _ = app.emit(
             crate::sync::SYNC_EVENT,
             tracker_sync::SyncEvent::Error {

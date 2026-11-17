@@ -289,6 +289,16 @@ export function installMocks() {
           return null;
         case "players_get":
           return PLAYERS;
+        case "sharing_status":
+          return {
+            discordConfigured: true,
+            discord: settings["sharing.discord.enabled"] ? "connecting" : "disabled",
+            webhookError: null,
+          };
+        case "plugin:dialog|save":
+          return window.prompt("Save as", "anime-list.md") || null;
+        case "list_export":
+          return entries.size;
         case "tracking_get": {
           const watching = [...entries.values()].find((e) => e.status === "Watching")!;
           const next = watching.watchedEpisodes + 3; // skips ahead, to show the prompt

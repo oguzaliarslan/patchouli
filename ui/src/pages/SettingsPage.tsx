@@ -1,7 +1,14 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { Fragment, useEffect, useState } from "react";
-import { api, errorCode, errorMessage, type AccountStatus, type Settings } from "../api";
+import {
+  api,
+  errorCode,
+  errorMessage,
+  type AccountStatus,
+  type Settings,
+  type SharingStatus,
+} from "../api";
 import { Toggle } from "../components/inputs";
 import { useApp } from "../lib/context";
 import { usePref } from "../lib/prefs";
@@ -485,23 +492,48 @@ function StreamingSection({ settings, change }: SectionProps) {
   );
 }
 
+const DISCORD_STATUS: Record<SharingStatus["discord"], string> = {
+  disabled: "Off",
+  connecting: "Looking for the Discord app…",
+  connected: "Connected to Discord",
+  invalidClientId: "Discord doesn't recognize the application ID",
+};
+
 function SharingSection({ settings, change }: SectionProps) {
   const sharing = settings["sharing.enabled"];
+  // Polled, since the connection changes on its own (Discord starting or quitting).
+  const { data: status } = useQuery({
+    queryKey: ["sharing-status"],
+    queryFn: api.sharingStatus,
+    refetchInterval: 2000,
+    staleTime: 0,
+  });
+  const discordConfigured = status?.discordConfigured ?? true;
   return (
     <section className="settings-section">
       <h2>Sharing</h2>
       <Toggle
         label="Share what I'm watching"
+        description="Anime whose list entry is private are never shared."
         checked={sharing}
         onChange={(v) => change("sharing.enabled", v)}
       />
       <Toggle
         label="Discord status"
-        description="Shows the episode on your Discord profile (needs the Discord app)."
+        description={
+          discordConfigured
+            ? "Shows the episode on your Discord profile (needs the Discord app)."
+            : "No Discord application ID is configured (TRACKER_DISCORD_APP_ID, see README)."
+        }
         checked={settings["sharing.discord.enabled"]}
-        disabled={!sharing}
+        disabled={!sharing || !discordConfigured}
         onChange={(v) => change("sharing.discord.enabled", v)}
       />
+      {discordConfigured && sharing && settings["sharing.discord.enabled"] && status && (
+        <p className={status.discord === "invalidClientId" ? "error small" : "muted small"}>
+          {DISCORD_STATUS[status.discord]}
+        </p>
+      )}
       <Toggle
         label="Webhook"
         description="Sends playing, stopped and updated events as JSON to a URL."
@@ -509,6 +541,9 @@ function SharingSection({ settings, change }: SectionProps) {
         disabled={!sharing}
         onChange={(v) => change("sharing.webhook.enabled", v)}
       />
+      {settings["sharing.webhook.enabled"] && status?.webhookError && (
+        <p className="error small">Last event failed: {status.webhookError}</p>
+      )}
       {settings["sharing.webhook.enabled"] && (
         <>
           <Field label="URL" htmlFor="webhook-url">

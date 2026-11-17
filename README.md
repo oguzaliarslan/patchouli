@@ -16,7 +16,7 @@ crates/
   recognition/  title normalisation and matching, anime-relations, library scanning
   track/        what's playing and when to update the list
   sync/         AniList and MyAnimeList clients, browser login, update queue
-  share/        Discord presence and webhook (phase 6)
+  share/        Discord Rich Presence and the sharing webhook
   compat/       Taiga data importers (phase 7)
 src-tauri/      Tauri app: wiring, commands, resources
 ui/             React + TypeScript + Vite frontend
@@ -89,6 +89,20 @@ To run the test that writes to the real credential store:
 ```bash
 cargo test -p tracker-app -- --ignored
 ```
+
+## Discord status
+
+Create an application at <https://discord.com/developers/applications> (its name is what Discord shows, e.g. "Watching Tracker"), and set its ID:
+
+```powershell
+$env:TRACKER_DISCORD_APP_ID = "123456789012345678"
+```
+
+Under *Rich Presence › Art Assets*, upload images named `default`, `anilist` and `myanimelist`; posters from the services are used when available.
+
+## Logs
+
+Logs go in `logs\tracker_<date>.log` in the data folder: warnings and errors normally, more with `--debug` or `--verbose` (debug builds log debug messages too).
 
 ## Data
 

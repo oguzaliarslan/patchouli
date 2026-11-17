@@ -1,6 +1,9 @@
-//! Shares what is being watched: Discord IPC rich presence and a JSON webhook.
+//! Shares what is being watched, ported from Taiga `src/share/*`:
 //!
-//! Phase 6: port Taiga `src/share/*`, keeping the webhook event schema (version 1).
+//! - [`discord`]: Rich Presence through the Discord desktop app's local IPC
+//!   socket (`discord_ipc.cpp`, `discord_rpc.cpp`).
+//! - [`webhook`]: JSON events posted to a user-defined URL (`event.cpp`,
+//!   `http.cpp`), in the version 1 schema.
 
-/// Version of the webhook JSON document. Bump only on breaking changes.
-pub const EVENT_VERSION: u32 = 1;
+pub mod discord;
+pub mod webhook;

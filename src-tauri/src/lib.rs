@@ -1,8 +1,11 @@
 mod credentials;
 mod error;
+mod export;
 mod library;
+mod logging;
 mod paths;
 mod recognition;
+mod sharing;
 mod sync;
 mod tracking;
 mod window;
@@ -22,6 +25,7 @@ use tracker_sync::{AccountsFile, Synchronizer};
 use crate::credentials::KeyringStore;
 use crate::error::CommandResult;
 use crate::recognition::RecognitionCache;
+use crate::sharing::Sharing;
 use crate::tracking::Tracker;
 
 /// Event emitted with the changed setting keys (`string[]`).
@@ -39,6 +43,7 @@ pub(crate) struct AppState {
     sync: Arc<Synchronizer>,
     recognition: Arc<RecognitionCache>,
     tracker: Tracker,
+    sharing: Sharing,
     /// Held while a login is in progress.
     login: tokio::sync::Mutex<()>,
 }
@@ -104,6 +109,12 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         if keys.contains("sync.service") {
             cache.invalidate();
         }
+        if keys
+            .iter()
+            .any(|k| k.starts_with("sharing.") || k == "app.titleLanguage")
+        {
+            sharing::schedule_update(&handle);
+        }
         if keys.iter().any(|k| k.starts_with("track.update."))
             && handle.try_state::<AppState>().is_some()
         {
@@ -123,6 +134,10 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         .and_then(|text| tracker_detect::parse_players(&text).ok())
         .unwrap_or_default();
     let tracker = Tracker::new(players, &settings.get());
+    let (sharing, discord) = Sharing::new();
+    if let Some(discord) = discord {
+        tauri::async_runtime::spawn(discord);
+    }
 
     let db = tracker_db::open(data_dir.path.join(tracker_db::FILE_NAME))?;
     meta::set(&db, "version", &version)?;
@@ -133,6 +148,10 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
     let sync = Synchronizer::new(Arc::clone(&db), move |event| {
         if event == tracker_sync::SyncEvent::ListChanged {
             cache.invalidate();
+            sharing::schedule_update(&handle);
+        }
+        if let tracker_sync::SyncEvent::Error { message, .. } = &event {
+            log::warn!("Sync: {message}");
         }
         let _ = handle.emit(sync::SYNC_EVENT, event);
     });
@@ -148,6 +167,7 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         sync: Arc::new(sync),
         recognition,
         tracker,
+        sharing,
         login: tokio::sync::Mutex::new(()),
     })
 }
@@ -180,6 +200,7 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            logging::init(app.handle())?;
             let state = init_state(app.handle())?;
             start_sync(app.handle(), &state);
             window::create_tray(app.handle())?;
@@ -216,6 +237,8 @@ pub fn run() {
             tracking::tracking_get,
             tracking::update_accept,
             tracking::update_cancel,
+            sharing::sharing_status,
+            export::list_export,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
