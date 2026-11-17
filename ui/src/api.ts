@@ -177,6 +177,42 @@ export interface SearchParams {
   descending?: boolean;
 }
 
+export interface AnitomyElement {
+  kind: string;
+  value: string;
+  position: number;
+}
+
+export interface RecognitionCandidate {
+  id: number;
+  weight: number;
+  known: boolean;
+  validNumber: boolean;
+  redirection: { id: number; episodes: [number, number] } | null;
+}
+
+export interface RecognitionTest {
+  elements: AnitomyElement[];
+  titleFromPath: boolean;
+  identification: {
+    animeId: number | null;
+    normalizedTitle: string;
+    validType: boolean;
+    candidates: RecognitionCandidate[];
+    episode: { elements: AnitomyElement[] };
+  };
+  titles: Record<string, string>;
+}
+
+export interface LibraryView {
+  scan: {
+    anime: { animeId: number; files: { path: string; episodes: number[] }[] }[];
+    unrecognized: string[];
+    filesScanned: number;
+  };
+  anime: Record<string, Anime>;
+}
+
 export type SyncEvent =
   | { type: "queueChanged" }
   | { type: "listChanged" }
@@ -232,6 +268,17 @@ export const api = {
   clearHistory: () => invoke<void>("history_clear"),
 
   players: () => invoke<string[]>("players_get"),
+
+  testRecognition: (input: string) => invoke<RecognitionTest>("recognition_test", { input }),
+  /** Opens an episode from the library folders: `episode`, a random one, or the next one. */
+  play: (animeId: number, options: { episode?: number; random?: boolean } = {}) =>
+    invoke<{ episode: number; path: string }>("anime_play", {
+      animeId,
+      episode: options.episode ?? null,
+      random: options.random ?? false,
+    }),
+  openFolder: (animeId: number) => invoke<string>("anime_open_folder", { animeId }),
+  scanLibrary: () => invoke<LibraryView>("library_scan"),
 };
 
 /** A new list entry for an anime that isn't in the list. */

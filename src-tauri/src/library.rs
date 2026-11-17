@@ -75,6 +75,8 @@ pub fn anime_settings_save(
     } else {
         anime_settings::upsert(&db, &settings)?;
     }
+    // Alternative titles are recognition titles.
+    state.recognition.invalidate();
     Ok(())
 }
 

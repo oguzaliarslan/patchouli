@@ -1,5 +1,6 @@
+import { useMutation } from "@tanstack/react-query";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { api, errorCode, errorMessage, type AccountStatus, type Settings } from "../api";
 import { Toggle } from "../components/inputs";
 import { useApp } from "../lib/context";
@@ -344,8 +345,91 @@ function RecognitionSection({ settings, change }: SectionProps) {
         checked={settings["track.update.libraryOnly"]}
         onChange={(v) => change("track.update.libraryOnly", v)}
       />
-      <p className="muted small">Detection itself arrives in phase 5; these settings are saved now.</p>
+      <p className="muted small">Player detection arrives in phase 5; these settings are saved now.</p>
+
+      <h3>Test a file name</h3>
+      <RecognitionTester />
     </section>
+  );
+}
+
+function RecognitionTester() {
+  const app = useApp();
+  const [input, setInput] = useState("");
+  const test = useMutation({ mutationFn: api.testRecognition });
+  const result = test.data;
+  const id = result?.identification.animeId ?? null;
+  const episode = result?.identification.episode.elements.filter((e) => e.kind === "episode") ?? [];
+
+  return (
+    <div className="recognition-test">
+      <form
+        className="inline"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (input.trim()) test.mutate(input);
+        }}
+      >
+        <input
+          type="text"
+          className="grow"
+          placeholder="[Group] Title - 01 [1080p].mkv, or a full path"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          aria-label="File name to test"
+        />
+        <button type="submit" disabled={!input.trim() || test.isPending}>
+          Test
+        </button>
+      </form>
+      {test.isError && <p className="error">{errorMessage(test.error)}</p>}
+      {result && (
+        <div className="recognition-result">
+          <p>
+            {id !== null ? (
+              <>
+                Recognized as{" "}
+                <button className="link" onClick={() => app.openAnime(id)}>
+                  {result.titles[id] ?? `#${id}`}
+                </button>
+                {episode.length > 0 && `, episode ${episode.map((e) => e.value).join("–")}`}
+              </>
+            ) : (
+              <strong>Not recognized</strong>
+            )}
+            {!result.identification.validType && " (openings, endings and previews are ignored)"}
+          </p>
+          <dl className="facts small">
+            <dt>Normalized title</dt>
+            <dd>
+              <code>{result.identification.normalizedTitle || "—"}</code>
+              {result.titleFromPath && " (from the folder name)"}
+            </dd>
+            {result.elements.map((e, i) => (
+              <Fragment key={i}>
+                <dt>{e.kind.replace(/_/g, " ")}</dt>
+                <dd>{e.value}</dd>
+              </Fragment>
+            ))}
+          </dl>
+          {result.identification.candidates.length > 0 && (
+            <>
+              <h4>Candidates</h4>
+              <ul className="small">
+                {result.identification.candidates.map((c) => (
+                  <li key={c.id}>
+                    {result.titles[c.id] ?? `#${c.id}`} (weight {c.weight})
+                    {!c.validNumber && " — episode number out of range"}
+                    {c.redirection &&
+                      ` — redirected to ${result.titles[c.redirection.id] ?? `#${c.redirection.id}`}, episode ${c.redirection.episodes[0]}`}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

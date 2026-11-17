@@ -11,9 +11,9 @@ crates/
   core/         domain types (Anime, ListEntry, FuzzyDate, Season, ServiceId, ...)
   db/           SQLite storage: migrations and per-table repositories (opens Taiga v2 databases)
   settings/     settings.json store (Taiga v2 format) with change notifications
-  anitomy/      filename parser (phase 4)
+  anitomy/      filename parser, a port of Anitomy checked against the C++ library
   detect/       media player detection (phase 5)
-  recognition/  title matching, anime-relations, library scan (phase 4)
+  recognition/  title normalisation and matching, anime-relations, library scanning
   track/        update decision and session state machine (phase 5)
   sync/         AniList and MyAnimeList clients, browser login, update queue
   share/        Discord presence and webhook (phase 6)

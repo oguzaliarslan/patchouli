@@ -8,6 +8,7 @@ import { useBackendEvents, useCurrentAccount, useQueue, useSettings } from "./li
 import { useColorScheme } from "./lib/theme";
 import { HistoryPage } from "./pages/HistoryPage";
 import { HomePage } from "./pages/HomePage";
+import { LibraryPage } from "./pages/LibraryPage";
 import { ListPage } from "./pages/ListPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -78,17 +79,7 @@ export default function App() {
           {page === "list" && <ListPage />}
           {page === "search" && <SearchPage />}
           {page === "history" && <HistoryPage />}
-          {page === "library" && (
-            <div className="page">
-              <header className="page-header">
-                <h1>Library</h1>
-              </header>
-              <p className="empty">
-                Library scanning arrives with recognition (phase 4). Add your anime folders in
-                Settings › Library.
-              </p>
-            </div>
-          )}
+          {page === "library" && <LibraryPage />}
           {page === "settings" && <SettingsPage />}
         </main>
 

@@ -418,6 +418,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "caseless"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b6fd507454086c8edfd769ca6ada439193cdb209c7681712ef6275cccbfe5d8"
+dependencies = [
+ "unicode-normalization",
+]
+
+[[package]]
 name = "cc"
 version = "1.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4164,6 +4173,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinyvec"
+version = "1.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
+
+[[package]]
 name = "tokio"
 version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4423,7 +4438,9 @@ dependencies = [
 name = "tracker-anitomy"
 version = "0.1.0"
 dependencies = [
+ "regex",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -4439,8 +4456,10 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-window-state",
  "tokio",
+ "tracker-anitomy",
  "tracker-core",
  "tracker-db",
+ "tracker-recognition",
  "tracker-settings",
  "tracker-sync",
 ]
@@ -4474,6 +4493,17 @@ version = "0.1.0"
 [[package]]
 name = "tracker-recognition"
 version = "0.1.0"
+dependencies = [
+ "caseless",
+ "getrandom 0.3.4",
+ "regex",
+ "serde",
+ "tracker-anitomy",
+ "tracker-core",
+ "unicode-general-category",
+ "unicode-normalization",
+ "walkdir",
+]
 
 [[package]]
 name = "tracker-settings"
@@ -4602,10 +4632,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "unicode-general-category"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b993bddc193ae5bd0d623b49ec06ac3e9312875fdae725a975c51db1cc1677f"
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
+
+[[package]]
+name = "unicode-normalization"
+version = "0.1.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75cd3fb03d5288b3ba9a1ee103ac7e9cbb59f0b03d64f8ddfcc04dd42758a85d"
+dependencies = [
+ "tinyvec",
+]
 
 [[package]]
 name = "unicode-segmentation"

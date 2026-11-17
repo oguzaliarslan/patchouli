@@ -28,3 +28,5 @@ tracker-core.workspace = true
 tracker-db.workspace = true
 tracker-settings.workspace = true
 tracker-sync.workspace = true
+tracker-anitomy.workspace = true
+tracker-recognition.workspace = true

@@ -2,6 +2,7 @@ mod credentials;
 mod error;
 mod library;
 mod paths;
+mod recognition;
 mod sync;
 mod window;
 
@@ -19,6 +20,7 @@ use tracker_sync::{AccountsFile, Synchronizer};
 
 use crate::credentials::KeyringStore;
 use crate::error::CommandResult;
+use crate::recognition::RecognitionCache;
 
 /// Event emitted with the changed setting keys (`string[]`).
 const SETTINGS_CHANGED: &str = "settings-changed";
@@ -33,6 +35,7 @@ pub(crate) struct AppState {
     credentials: Arc<KeyringStore>,
     oauth: OAuthConfig,
     sync: Arc<Synchronizer>,
+    recognition: Arc<RecognitionCache>,
     /// Held while a login is in progress.
     login: tokio::sync::Mutex<()>,
 }
@@ -84,10 +87,20 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
     std::fs::create_dir_all(&data_dir.path)?;
     let version = app.package_info().version.to_string();
 
+    let recognition = Arc::new(RecognitionCache::new(
+        data_dir.path.clone(),
+        app.path().resource_dir().ok().map(|d| d.join("resources")),
+    ));
+
     let settings = SettingsStore::load(data_dir.path.join(tracker_settings::FILE_NAME))?;
     settings.update(|s| s.meta_version = version.clone())?;
     let handle = app.clone();
+    let cache = Arc::clone(&recognition);
     settings.subscribe(move |_, keys| {
+        // Relation rules depend on the service's IDs.
+        if keys.contains("sync.service") {
+            cache.invalidate();
+        }
         let _ = handle.emit(SETTINGS_CHANGED, keys);
     });
 
@@ -96,7 +109,11 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
     let db = Arc::new(Mutex::new(db));
 
     let handle = app.clone();
+    let cache = Arc::clone(&recognition);
     let sync = Synchronizer::new(Arc::clone(&db), move |event| {
+        if event == tracker_sync::SyncEvent::ListChanged {
+            cache.invalidate();
+        }
         let _ = handle.emit(sync::SYNC_EVENT, event);
     });
 
@@ -109,6 +126,7 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         db,
         settings: Arc::new(settings),
         sync: Arc::new(sync),
+        recognition,
         login: tokio::sync::Mutex::new(()),
     })
 }
@@ -168,6 +186,10 @@ pub fn run() {
             library::history_remove,
             library::history_clear,
             library::players_get,
+            recognition::recognition_test,
+            recognition::anime_play,
+            recognition::anime_open_folder,
+            recognition::library_scan,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

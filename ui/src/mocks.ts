@@ -289,6 +289,52 @@ export function installMocks() {
           return null;
         case "players_get":
           return PLAYERS;
+        case "recognition_test": {
+          // Rough stand-in for the real parser: `[Group] Title - 01 [Info].ext`.
+          const input = String(a.input).split(/[\\/]/).pop() ?? "";
+          const title = input.replace(/\[[^\]]*\]|\([^)]*\)/g, "").replace(/\.\w+$/, "").split(" - ")[0].trim();
+          const number = /- (\d{1,4})/.exec(input)?.[1];
+          const match = [...catalog.values()].find((x) => x.titles.romaji.toLowerCase() === title.toLowerCase());
+          const elements = [
+            { kind: "title", value: title, position: 0 },
+            ...(number ? [{ kind: "episode", value: number, position: 0 }] : []),
+          ];
+          return {
+            elements,
+            titleFromPath: false,
+            identification: {
+              animeId: match?.id ?? null,
+              normalizedTitle: title.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ""),
+              validType: true,
+              candidates: match ? [{ id: match.id, weight: 1, known: true, validNumber: true, redirection: null }] : [],
+              episode: { elements },
+            },
+            titles: match ? { [match.id]: match.titles.romaji } : {},
+          };
+        }
+        case "anime_play":
+          await sleep(400);
+          throw { code: null, message: "Playing files isn't available in the browser preview." };
+        case "anime_open_folder":
+          throw { code: null, message: "Opening folders isn't available in the browser preview." };
+        case "library_scan": {
+          await sleep(800);
+          const found = [...entries.values()].filter((e) => e.status === "Watching").slice(0, 8);
+          return {
+            scan: {
+              anime: found.map((e) => ({
+                animeId: e.animeId,
+                files: Array.from({ length: Math.max(1, e.watchedEpisodes + 1) }, (_, i) => ({
+                  path: `D:\\Anime\\${catalog.get(e.animeId)!.titles.romaji}\\${pad(i + 1)}.mkv`,
+                  episodes: [i + 1],
+                })),
+              })),
+              unrecognized: ["D:\\Anime\\Misc\\clip.mp4"],
+              filesScanned: 42,
+            },
+            anime: Object.fromEntries(found.map((e) => [e.animeId, catalog.get(e.animeId)])),
+          };
+        }
         case "plugin:dialog|confirm":
           return window.confirm(String(a.message ?? ""));
         case "plugin:dialog|open":

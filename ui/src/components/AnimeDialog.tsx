@@ -23,9 +23,9 @@ import {
   plainText,
   preferredTitle,
 } from "../lib/format";
-import { withStatus } from "../lib/entries";
+import { nextEpisode, withStatus } from "../lib/entries";
 import { keys, queryClient, useAnime, useCurrentAccount, useRemoveEntry, useSaveEntry, useSettings } from "../lib/queries";
-import { confirmAction } from "../lib/useAnimeMenu";
+import { confirmAction, openFolder, playEpisode } from "../lib/useAnimeMenu";
 import { Icon } from "./Icon";
 import { FuzzyDateInput, ScoreSelect } from "./inputs";
 import { Poster } from "./Poster";
@@ -132,6 +132,15 @@ function DetailsTab({ details, title }: { details: AnimeDetails; title: string }
       <div className="details-side">
         <Poster anime={anime} title={title} className="poster large" />
         <div className="details-actions">
+          <button
+            className="primary"
+            onClick={() => void playEpisode(app, anime.id, title, {})}
+          >
+            <Icon name="play" size={16} /> Play episode {nextEpisode(anime, details.entry)}
+          </button>
+          <button onClick={() => void openFolder(app, anime.id)}>
+            <Icon name="folder" size={16} /> Open folder
+          </button>
           {details.pageUrl && (
             <button onClick={() => void openUrl(details.pageUrl!)}>
               <Icon name="external" size={16} /> Open page

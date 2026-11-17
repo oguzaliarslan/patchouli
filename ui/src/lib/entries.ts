@@ -55,6 +55,15 @@ export interface MenuDeps {
   save: (entry: ListEntry) => void;
   remove: (animeId: number, title: string) => void;
   notify: (message: string) => void;
+  play: (animeId: number, title: string, options: { episode?: number; random?: boolean }) => void;
+  openFolder: (animeId: number) => void;
+}
+
+/** Taiga's `nextEpisodeNumber`: after the last watched, or 1 once completed. */
+export function nextEpisode(anime: Anime | null | undefined, entry: ListEntry | null | undefined): number {
+  const next = (entry?.watchedEpisodes ?? 0) + 1;
+  const total = anime?.episodeCount ?? 0;
+  return total > 0 && next > total ? 1 : next;
 }
 
 /** The right-click menu for an anime, as in Taiga's `MediaMenu`. */
@@ -107,7 +116,18 @@ export function animeMenu(target: MenuTarget, deps: MenuDeps): MenuEntry[] {
     });
   }
 
-  items.push("separator");
+  // Playing and folders use the library folders (Taiga's Play / Open folder).
+  const next = nextEpisode(anime, entry);
+  items.push(
+    "separator",
+    {
+      label: total > 0 && next > total ? "Play" : `Play episode ${next}`,
+      onSelect: () => deps.play(animeId, title, {}),
+    },
+    { label: "Play random episode", onSelect: () => deps.play(animeId, title, { random: true }) },
+    { label: "Open folder", onSelect: () => deps.openFolder(animeId) },
+    "separator",
+  );
   if (url) {
     items.push({ label: "Open page in browser", onSelect: () => void openUrl(url) });
   }

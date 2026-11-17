@@ -7,3 +7,12 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+tracker-core.workspace = true
+tracker-anitomy.workspace = true
+serde.workspace = true
+regex.workspace = true
+unicode-normalization.workspace = true
+unicode-general-category.workspace = true
+caseless.workspace = true
+walkdir.workspace = true
+getrandom.workspace = true
