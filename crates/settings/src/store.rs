@@ -129,6 +129,27 @@ impl SettingsStore {
         Ok(changed)
     }
 
+    /// Sets the given keys (e.g. `track.update.delay`), skipping unknown keys
+    /// and values of the wrong type. Returns the changed keys.
+    pub fn merge(
+        &self,
+        values: &serde_json::Map<String, Value>,
+    ) -> Result<BTreeSet<String>, Error> {
+        let Value::Object(mut current) = serde_json::to_value(self.get())? else {
+            return Ok(BTreeSet::new());
+        };
+        for (key, value) in values {
+            if current.contains_key(key) {
+                current.insert(key.clone(), value.clone());
+            }
+        }
+        let bytes = serde_json::to_vec(&Value::Object(current))?;
+        match parse_lenient(&bytes) {
+            Some(new) => self.replace(new),
+            None => Ok(BTreeSet::new()),
+        }
+    }
+
     /// Registers a function to call after every change.
     pub fn subscribe(
         &self,
@@ -201,6 +222,29 @@ fn changed_keys(old: &Settings, new: &Settings) -> Result<BTreeSet<String>, Erro
 mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn merge_skips_unknown_keys_and_bad_values() {
+        let dir =
+            std::env::temp_dir().join(format!("tracker-settings-merge-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let store = SettingsStore::load(dir.join("settings.json")).unwrap();
+        let values = serde_json::json!({
+            "track.update.delay": 45,
+            "sync.service": "myanimelist",
+            "track.detection.interval": "fast",
+            "no.such.key": true,
+        });
+        let changed = store.merge(values.as_object().unwrap()).unwrap();
+        assert!(changed.contains("track.update.delay"));
+        assert!(!changed.contains("track.detection.interval"));
+        assert!(!changed.contains("no.such.key"));
+        assert_eq!(
+            store.get().sync_service,
+            tracker_core::ServiceId::MyAnimeList
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     use super::*;
     use crate::{FILE_NAME, UPDATE_DELAY_MAX};

@@ -91,12 +91,28 @@ fn configure(conn: &mut Connection) -> Result<()> {
 /// Anime IDs differ between services, so this is needed before data from
 /// another service can be loaded. `meta` is kept.
 pub fn clear_service_data(conn: &Connection) -> Result<()> {
-    let tx = conn.unchecked_transaction()?;
-    for table in ["anime", "anime_list", "anime_settings", "history", "queue"] {
-        tx.execute(&format!("DELETE FROM {table}"), [])?;
+    in_transaction(conn, |conn| {
+        for table in ["anime", "anime_list", "anime_settings", "history", "queue"] {
+            conn.execute(&format!("DELETE FROM {table}"), [])?;
+        }
+        Ok(())
+    })
+}
+
+/// Runs `f` in a savepoint: all of its writes happen or none do. Unlike a
+/// transaction, this also works inside a transaction the caller started.
+pub fn in_transaction<T>(conn: &Connection, f: impl FnOnce(&Connection) -> Result<T>) -> Result<T> {
+    conn.execute_batch("SAVEPOINT tracker_write")?;
+    match f(conn) {
+        Ok(value) => {
+            conn.execute_batch("RELEASE tracker_write")?;
+            Ok(value)
+        }
+        Err(e) => {
+            let _ = conn.execute_batch("ROLLBACK TO tracker_write; RELEASE tracker_write");
+            Err(e)
+        }
     }
-    tx.commit()?;
-    Ok(())
 }
 
 /// Whether the database holds a list or unsent changes.

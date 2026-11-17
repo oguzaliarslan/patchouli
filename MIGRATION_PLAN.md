@@ -239,10 +239,11 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 - [ ] i18n: **not needed yet**. Taiga's `resources/translations` holds only English plural forms, so there's nothing to convert. Revisit when there are translators
 - [x] Logging to `<data>/logs/tracker_<date>.log`, plus `--debug`/`--verbose` CLI flags
 
-### Phase 7: Data migration from Taiga (1 week)
-- [ ] Import from a Taiga **v2** SQLite DB + INI files
-- [ ] Import from a Taiga **v1** data folder (port `compat/*`: XML cleanup of the meta element and invalid char refs, db/list/history/queue/settings/anime-settings)
-- [ ] First-run wizard: "Import from Taiga?"
+### Phase 7: Data migration from Taiga (1 week) ✅
+- [x] Import from a Taiga **v2** data folder (`crates/compat/src/v2.rs`): `media.sqlite` opened read-only and not migrated, `settings.json` merged key by key (unknown keys and wrong types skipped), username from `accounts.json`. Taiga v2 uses JSON, not INI
+- [x] Import from a Taiga **v1** data folder (`crates/compat/src/v1.rs`, port of `compat/*`): invalid character references removed, the extra `<meta>` root handled, anime with the active service's `<id name="…">`, list, history (local times), the unsent queue applied to entries with the matching dirty fields (`mode="delete"` → pending delete), `settings.xml` mapped to v2 keys, per-anime folders and alternative titles
+- [x] Login tokens are never imported (they belong to Taiga's application); the user logs in again
+- [x] First-run prompt on Home when Taiga data is found in the default locations and the local list is empty ("Import" / "Not now", remembered in `meta.taiga_import`), plus Settings › Advanced › Import from Taiga with a folder picker (portable Taiga folders too). Importing over a local list asks first; the import is one savepoint
 
 ### Phase 8: Release (1–2 weeks)
 - [ ] Code signing (Windows Authenticode), NSIS/MSI installer + portable zip

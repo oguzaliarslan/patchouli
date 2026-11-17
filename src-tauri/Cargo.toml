@@ -38,3 +38,4 @@ tracker-recognition.workspace = true
 tracker-detect.workspace = true
 tracker-track.workspace = true
 tracker-share.workspace = true
+tracker-compat.workspace = true

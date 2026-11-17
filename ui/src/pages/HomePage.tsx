@@ -3,7 +3,8 @@ import { Poster } from "../components/Poster";
 import { useApp } from "../lib/context";
 import { episodesText, itemTitle, progressRatio, relativeTime } from "../lib/format";
 import { useAnimeMenu } from "../lib/useAnimeMenu";
-import { useCurrentAccount, useList, useSettings, type SyncState } from "../lib/queries";
+import { useCurrentAccount, useList, useSettings, useTaigaDetection, type SyncState } from "../lib/queries";
+import { dismissTaigaImport, importFromTaiga } from "../lib/taiga";
 
 export function HomePage({ sync }: { sync: SyncState }) {
   const app = useApp();
@@ -11,6 +12,7 @@ export function HomePage({ sync }: { sync: SyncState }) {
   const { data: items = [] } = useList();
   const { connected, account } = useCurrentAccount();
   const openMenu = useAnimeMenu();
+  const { data: taiga } = useTaigaDetection();
   const language = settings?.["app.titleLanguage"] ?? "romaji";
 
   const watching = items
@@ -31,7 +33,22 @@ export function HomePage({ sync }: { sync: SyncState }) {
 
       <NowPlayingCard />
 
-      {!account?.username && (
+      {taiga?.prompt && (
+        <section className="callout">
+          <p>
+            Taiga data was found. Import your list, history and settings from Taiga?{" "}
+            <button className="link" onClick={() => void importFromTaiga(app, taiga.found[0].path)}>
+              Import
+            </button>{" "}
+            ·{" "}
+            <button className="link" onClick={() => void dismissTaigaImport()}>
+              Not now
+            </button>
+          </p>
+        </section>
+      )}
+
+      {!taiga?.prompt && !account?.username && (
         <section className="callout">
           <p>
             Log in to AniList or MyAnimeList to load your list.{" "}

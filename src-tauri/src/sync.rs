@@ -19,7 +19,7 @@ use crate::error::{CommandError, CommandResult};
 pub const SYNC_EVENT: &str = "sync";
 
 /// `meta` key naming the service the local list came from.
-const META_SERVICE: &str = "service";
+pub const META_SERVICE: &str = "service";
 
 /// Services that can be logged in to.
 const SERVICES: [ServiceId; 2] = [ServiceId::AniList, ServiceId::MyAnimeList];

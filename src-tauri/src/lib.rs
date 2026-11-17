@@ -7,6 +7,7 @@ mod paths;
 mod recognition;
 mod sharing;
 mod sync;
+mod taiga;
 mod tracking;
 mod window;
 
@@ -239,6 +240,10 @@ pub fn run() {
             tracking::update_cancel,
             sharing::sharing_status,
             export::list_export,
+            taiga::taiga_detect,
+            taiga::taiga_preview,
+            taiga::taiga_import,
+            taiga::taiga_dismiss,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

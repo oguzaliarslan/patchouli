@@ -37,9 +37,8 @@ pub fn upsert(conn: &Connection, entry: &ListEntry) -> Result<()> {
 
 /// Inserts or replaces several entries in one transaction.
 pub fn upsert_many(conn: &Connection, entries: &[ListEntry]) -> Result<()> {
-    let tx = conn.unchecked_transaction()?;
-    {
-        let mut stmt = tx.prepare_cached(INSERT)?;
+    crate::in_transaction(conn, |conn| {
+        let mut stmt = conn.prepare_cached(INSERT)?;
         for e in entries {
             stmt.execute(named_params! {
                 ":media_id": e.anime_id,
@@ -58,9 +57,8 @@ pub fn upsert_many(conn: &Connection, entries: &[ListEntry]) -> Result<()> {
                 ":pending_delete": e.pending_delete,
             })?;
         }
-    }
-    tx.commit()?;
-    Ok(())
+        Ok(())
+    })
 }
 
 /// Returns whether an entry was deleted.

@@ -104,6 +104,8 @@ const queue = new Map<number, QueueItem>();
 const animeSettings = new Map<number, AnimeSettings>();
 let history: HistoryItem[] = [];
 let historyId = 1;
+let taigaDone = false;
+const TAIGA_PATH = String.raw`C:\Users\demo\AppData\Roaming\erengy\taiga\data`;
 for (const e of [...entries.values()].filter((e) => e.status === "Watching").slice(0, 6)) {
   for (let ep = Math.max(1, e.watchedEpisodes - 2); ep <= e.watchedEpisodes; ep++) {
     history.push({ id: historyId++, animeId: e.animeId, episode: ep, time: e.lastUpdated - (e.watchedEpisodes - ep) * 3600 });
@@ -382,8 +384,40 @@ export function installMocks() {
             anime: Object.fromEntries(found.map((e) => [e.animeId, catalog.get(e.animeId)])),
           };
         }
+        case "taiga_detect":
+          return {
+            found: [{ version: "V2", path: TAIGA_PATH }],
+            prompt: !taigaDone,
+          };
+        case "taiga_preview":
+        case "taiga_import": {
+          const summary = {
+            version: "V2",
+            path: String(a.path ?? TAIGA_PATH),
+            service: "anilist",
+            serviceName: "AniList",
+            username: "demo",
+            anime: catalog.size,
+            entries: entries.size,
+            history: 0,
+            queue: 0,
+            settings: 12,
+            warnings: [],
+          };
+          if (cmd === "taiga_import") taigaDone = true;
+          return summary;
+        }
+        case "taiga_dismiss":
+          taigaDone = true;
+          return null;
         case "plugin:dialog|confirm":
           return window.confirm(String(a.message ?? ""));
+        // `confirm` with custom labels; answers with the chosen label.
+        case "plugin:dialog|message": {
+          const custom = (a.buttons as { OkCancelCustom?: [string, string] } | undefined)?.OkCancelCustom;
+          const [ok, cancel] = custom ?? ["Ok", "Cancel"];
+          return window.confirm(String(a.message ?? "")) ? ok : cancel;
+        }
         case "plugin:dialog|open":
           return window.prompt("Folder path") || null;
         case "plugin:opener|open_url":

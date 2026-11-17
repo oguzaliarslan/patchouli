@@ -32,9 +32,8 @@ pub fn upsert(conn: &Connection, anime: &Anime) -> Result<()> {
 
 /// Inserts or replaces several anime in one transaction.
 pub fn upsert_many(conn: &Connection, items: &[Anime]) -> Result<()> {
-    let tx = conn.unchecked_transaction()?;
-    {
-        let mut stmt = tx.prepare_cached(INSERT)?;
+    crate::in_transaction(conn, |conn| {
+        let mut stmt = conn.prepare_cached(INSERT)?;
         for a in items {
             stmt.execute(named_params! {
                 ":id": a.id,
@@ -63,9 +62,8 @@ pub fn upsert_many(conn: &Connection, items: &[Anime]) -> Result<()> {
                 ":modified": a.last_modified,
             })?;
         }
-    }
-    tx.commit()?;
-    Ok(())
+        Ok(())
+    })
 }
 
 /// Returns whether a row was deleted.

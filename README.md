@@ -17,7 +17,7 @@ crates/
   track/        what's playing and when to update the list
   sync/         AniList and MyAnimeList clients, browser login, update queue
   share/        Discord Rich Presence and the sharing webhook
-  compat/       Taiga data importers (phase 7)
+  compat/       Taiga v1/v2 data importers
 src-tauri/      Tauri app: wiring, commands, resources
 ui/             React + TypeScript + Vite frontend
 ```
@@ -99,6 +99,10 @@ $env:TRACKER_DISCORD_APP_ID = "123456789012345678"
 ```
 
 Under *Rich Presence › Art Assets*, upload images named `default`, `anilist` and `myanimelist`; posters from the services are used when available.
+
+## Importing from Taiga
+
+If Taiga's data is found (`%APPDATA%\erengy\taiga\data` for Taiga 2, `%APPDATA%\Taiga\data` for Taiga 1.x) and the list is empty, Home offers to import it. Otherwise use *Settings › Advanced › Import from Taiga*, which also accepts a portable Taiga folder. The list, history, unsent changes, per-anime settings and settings are imported; Taiga's files aren't changed. Logins aren't imported, so log in again afterwards.
 
 ## Logs
 

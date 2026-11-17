@@ -2804,7 +2804,7 @@ checksum = "740ebea15c5d1428f910cd1a5f52cebf8d25006245ed8ade92702f4943d91e07"
 dependencies = [
  "base64 0.22.1",
  "indexmap 2.14.2",
- "quick-xml",
+ "quick-xml 0.38.4",
  "serde",
  "time",
 ]
@@ -2946,6 +2946,15 @@ name = "quick-xml"
 version = "0.38.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b66c2058c55a409d601666cffe35f04333cf1013010882cec174a7467cd4e21c"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "quick-xml"
+version = "0.42.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41b1177fdf999d2321d3fb46ff47159d9c1fb9ad66a4879f8c50a0b504615e9b"
 dependencies = [
  "memchr",
 ]
@@ -4626,6 +4635,7 @@ dependencies = [
  "tauri-plugin-window-state",
  "tokio",
  "tracker-anitomy",
+ "tracker-compat",
  "tracker-core",
  "tracker-db",
  "tracker-detect",
@@ -4639,6 +4649,16 @@ dependencies = [
 [[package]]
 name = "tracker-compat"
 version = "0.1.0"
+dependencies = [
+ "chrono",
+ "quick-xml 0.42.0",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tracker-core",
+ "tracker-db",
+]
 
 [[package]]
 name = "tracker-core"

@@ -263,6 +263,31 @@ export type SyncEvent =
   | { type: "busy"; busy: boolean }
   | { type: "error"; message: string; unauthorized: boolean };
 
+export interface TaigaFound {
+  version: "V1" | "V2";
+  path: string;
+}
+
+export interface TaigaDetection {
+  found: TaigaFound[];
+  /** Offer to import on start. */
+  prompt: boolean;
+}
+
+export interface TaigaSummary {
+  version: "V1" | "V2";
+  path: string;
+  service: ServiceId | null;
+  serviceName: string | null;
+  username: string | null;
+  anime: number;
+  entries: number;
+  history: number;
+  queue: number;
+  settings: number;
+  warnings: string[];
+}
+
 /** What commands reject with. */
 export interface CommandError {
   code: string | null;
@@ -328,6 +353,13 @@ export const api = {
   /** Writes the list to `path`; returns the number of entries. */
   exportList: (format: "markdown" | "myAnimeListXml", path: string) =>
     invoke<number>("list_export", { format, path }),
+
+  taigaDetect: () => invoke<TaigaDetection>("taiga_detect"),
+  /** `path`: a Taiga data folder or portable Taiga folder; default location if null. */
+  taigaPreview: (path: string | null) => invoke<TaigaSummary>("taiga_preview", { path }),
+  taigaImport: (path: string | null, replaceLocal = false) =>
+    invoke<TaigaSummary>("taiga_import", { path, replaceLocal }),
+  taigaDismiss: () => invoke<void>("taiga_dismiss"),
 
   tracking: () => invoke<TrackingState>("tracking_get"),
   acceptUpdate: () => invoke<UpdateState>("update_accept"),

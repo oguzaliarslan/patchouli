@@ -12,7 +12,8 @@ import {
 import { Toggle } from "../components/inputs";
 import { useApp } from "../lib/context";
 import { usePref } from "../lib/prefs";
-import { keys, queryClient, useAccounts, useAppInfo, usePlayers, useSettings, useUpdateSettings } from "../lib/queries";
+import { keys, queryClient, useAccounts, useAppInfo, usePlayers, useSettings, useTaigaDetection, useUpdateSettings } from "../lib/queries";
+import { importFromTaiga } from "../lib/taiga";
 import { confirmAction } from "../lib/useAnimeMenu";
 
 const SECTIONS = [
@@ -588,6 +589,48 @@ function HeadersInput({ value, onCommit }: { value: string[]; onCommit: (value: 
   );
 }
 
+function TaigaImport() {
+  const app = useApp();
+  const { data: taiga } = useTaigaDetection();
+  const [busy, setBusy] = useState(false);
+  const run = async (path: string | null) => {
+    setBusy(true);
+    try {
+      await importFromTaiga(app, path);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const browse = async () => {
+    const folder = await openDialog({ directory: true, title: "Select Taiga's folder or its data folder" });
+    if (typeof folder === "string") await run(folder);
+  };
+  return (
+    <>
+      <h3>Import from Taiga</h3>
+      <p className="muted small">
+        Replaces the local list, history and unsent changes with Taiga's, and copies its settings. Taiga's files
+        aren't changed; logins aren't imported.
+      </p>
+      {taiga?.found.map((f) => (
+        <Field key={f.path} label={f.version === "V1" ? "Taiga 1.x" : "Taiga 2"}>
+          <span className="inline">
+            <code>{f.path}</code>
+            <button disabled={busy} onClick={() => void run(f.path)}>
+              Import…
+            </button>
+          </span>
+        </Field>
+      ))}
+      <Field label={taiga?.found.length ? "Other location" : "Location"}>
+        <button disabled={busy} onClick={() => void browse()}>
+          Choose folder…
+        </button>
+      </Field>
+    </>
+  );
+}
+
 function AdvancedSection({ settings, change }: SectionProps) {
   const { data: info } = useAppInfo();
   const port = settings["network.proxy.port"];
@@ -647,6 +690,8 @@ function AdvancedSection({ settings, change }: SectionProps) {
           onCommit={(v) => change("network.proxy.password", v)}
         />
       </Field>
+
+      <TaigaImport />
 
       {info && (
         <>

@@ -23,6 +23,7 @@ export const keys = {
   anime: (id: number) => ["anime", id] as const,
   players: ["players"] as const,
   tracking: ["tracking"] as const,
+  taiga: ["taiga"] as const,
 };
 
 /** What's playing and the update state, kept current by backend events. */
@@ -61,6 +62,7 @@ export const useList = () => useQuery({ queryKey: keys.list, queryFn: api.list }
 export const useQueue = () => useQuery({ queryKey: keys.queue, queryFn: api.queue });
 export const useHistory = () => useQuery({ queryKey: keys.history, queryFn: api.history });
 export const useAppInfo = () => useQuery({ queryKey: keys.info, queryFn: api.appInfo });
+export const useTaigaDetection = () => useQuery({ queryKey: keys.taiga, queryFn: api.taigaDetect });
 export const usePlayers = () => useQuery({ queryKey: keys.players, queryFn: api.players });
 export const useAnime = (id: number | null) =>
   useQuery({
