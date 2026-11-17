@@ -55,9 +55,18 @@ export default function App() {
                 <dt>Data folder</dt>
                 <dd>
                   <code>{info.dataDir}</code>
+                  {info.portable && " (portable)"}
                 </dd>
-                <dt>Database tables</dt>
-                <dd>{info.tables.join(", ")}</dd>
+                <dt>Schema version</dt>
+                <dd>{info.schemaVersion}</dd>
+                <dt>Anime</dt>
+                <dd>{info.animeCount}</dd>
+                <dt>List entries</dt>
+                <dd>{info.listCount}</dd>
+                <dt>History</dt>
+                <dd>{info.historyCount}</dd>
+                <dt>Pending updates</dt>
+                <dd>{info.queueCount}</dd>
               </dl>
             )}
           </section>

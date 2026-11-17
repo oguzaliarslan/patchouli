@@ -12,9 +12,12 @@ publish = false
 [workspace.dependencies]
 # Cargo warns about unused entries here, so add each crate (e.g.
 # `tracker-sync = { path = "crates/sync" }`) once something depends on it.
+tracker-core = { path = "crates/core" }
 tracker-db = { path = "crates/db" }
+tracker-settings = { path = "crates/settings" }
 
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 bitflags = { version = "2", features = ["serde"] }
 rusqlite = { version = "0.37", features = ["bundled"] }
 

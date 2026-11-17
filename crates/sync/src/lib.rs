@@ -1,18 +1,7 @@
 //! Sync services and the offline update queue.
 //!
-//! Phase 2: implement a client per [`ServiceId`] and port Taiga `src/sync/queue.cpp`.
-
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ServiceId {
-    #[default]
-    Unknown,
-    MyAnimeList,
-    Kitsu,
-    AniList,
-}
+//! Phase 2: implement a client per `tracker_core::ServiceId` and port Taiga
+//! `src/sync/queue.cpp`.
 
 /// AniList GraphQL documents, copied from Taiga.
 pub mod gql {

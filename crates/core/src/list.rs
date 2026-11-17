@@ -17,6 +17,15 @@ pub enum ListStatus {
     PlanToWatch = 5,
 }
 
+int_enum!(ListStatus {
+    NotInList,
+    Watching,
+    Completed,
+    OnHold,
+    Dropped,
+    PlanToWatch
+});
+
 bitflags! {
     /// Fields of a list entry that changed locally and must be sent to the service.
     #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]

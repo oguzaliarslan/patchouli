@@ -9,3 +9,6 @@ publish.workspace = true
 [dependencies]
 serde.workspace = true
 bitflags.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

@@ -21,3 +21,4 @@ serde.workspace = true
 
 # Add the other workspace crates here as the app starts using them.
 tracker-db.workspace = true
+tracker-settings.workspace = true

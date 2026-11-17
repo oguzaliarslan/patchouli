@@ -1,54 +1,89 @@
-//! SQLite storage. The schema in `sql/` is copied verbatim from Taiga v2
-//! (`src/resources/sql`) so that existing databases can be opened directly.
+//! SQLite storage for anime metadata, the user's list, history and the sync queue.
 //!
-//! Note: `createAnimeList.sql` declares a foreign key on `media(id)`, a table that
-//! does not exist. It is harmless while `PRAGMA foreign_keys` is off. Fix it in a migration.
+//! The baseline schema (`sql/create*.sql`) is Taiga v2's, so a Taiga `media.sqlite`
+//! can be opened directly and is upgraded in place by [`migrations`].
+//!
+//! Each table has a module of plain functions that take a [`Connection`]:
+//! [`anime`], [`list`], [`anime_settings`], [`history`], [`queue`] and [`meta`].
+//! Functions that write several rows use a transaction.
 
+use std::fmt;
 use std::path::Path;
 
-pub use rusqlite::{Connection, Error, Result};
+pub use rusqlite::Connection;
 
-/// `(table, CREATE TABLE IF NOT EXISTS ...)` in creation order.
-pub const SCHEMA: &[(&str, &str)] = &[
-    ("meta", include_str!("../sql/createMeta.sql")),
-    ("anime", include_str!("../sql/createAnime.sql")),
-    ("anime_list", include_str!("../sql/createAnimeList.sql")),
-    (
-        "anime_settings",
-        include_str!("../sql/createAnimeSettings.sql"),
-    ),
-    ("history", include_str!("../sql/createHistory.sql")),
-    ("queue", include_str!("../sql/createQueue.sql")),
-];
+pub mod anime;
+pub mod anime_settings;
+pub mod history;
+pub mod list;
+pub mod meta;
+pub mod migrations;
+pub mod queue;
+mod value;
 
-pub mod queries {
-    pub const INSERT_ANIME: &str = include_str!("../sql/insertAnime.sql");
-    pub const INSERT_ANIME_LIST: &str = include_str!("../sql/insertAnimeList.sql");
-    pub const INSERT_ANIME_SETTINGS: &str = include_str!("../sql/insertAnimeSettings.sql");
-    pub const INSERT_HISTORY: &str = include_str!("../sql/insertHistory.sql");
-    pub const INSERT_QUEUE: &str = include_str!("../sql/insertQueue.sql");
+/// File name Taiga uses for its database.
+pub const FILE_NAME: &str = "media.sqlite";
+
+#[derive(Debug)]
+pub enum Error {
+    Sqlite(rusqlite::Error),
+    /// The database was written by a newer version of the app.
+    UnsupportedVersion {
+        found: i64,
+        supported: i64,
+    },
 }
 
-/// Opens (or creates) the database at `path` and ensures the schema exists.
-pub fn open(path: impl AsRef<Path>) -> Result<Connection> {
-    let conn = Connection::open(path)?;
-    conn.pragma_update(None, "journal_mode", "WAL")?;
-    init(&conn)?;
-    Ok(conn)
-}
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-/// Opens an in-memory database with the schema, for tests.
-pub fn open_in_memory() -> Result<Connection> {
-    let conn = Connection::open_in_memory()?;
-    init(&conn)?;
-    Ok(conn)
-}
-
-fn init(conn: &Connection) -> Result<()> {
-    for (_, sql) in SCHEMA {
-        conn.execute_batch(sql)?;
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Sqlite(e) => write!(f, "database error: {e}"),
+            Self::UnsupportedVersion { found, supported } => write!(
+                f,
+                "database schema version {found} is newer than supported version {supported}"
+            ),
+        }
     }
-    Ok(())
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Sqlite(e) => Some(e),
+            Self::UnsupportedVersion { .. } => None,
+        }
+    }
+}
+
+impl From<rusqlite::Error> for Error {
+    fn from(e: rusqlite::Error) -> Self {
+        Self::Sqlite(e)
+    }
+}
+
+/// Opens (or creates) the database at `path` and migrates it to the current schema.
+pub fn open(path: impl AsRef<Path>) -> Result<Connection> {
+    let mut conn = Connection::open(path)?;
+    conn.pragma_update(None, "journal_mode", "WAL")?;
+    configure(&mut conn)?;
+    Ok(conn)
+}
+
+/// Opens an in-memory database with the current schema, for tests.
+pub fn open_in_memory() -> Result<Connection> {
+    let mut conn = Connection::open_in_memory()?;
+    configure(&mut conn)?;
+    Ok(conn)
+}
+
+fn configure(conn: &mut Connection) -> Result<()> {
+    // Foreign keys are documentation only, as in Taiga: history, queue and list
+    // rows may refer to anime that are no longer in the `anime` table. The
+    // bundled SQLite enables enforcement by default, so turn it off.
+    conn.pragma_update(None, "foreign_keys", false)?;
+    migrations::run(conn)
 }
 
 /// Names of the user tables in the database, sorted.
@@ -58,7 +93,7 @@ pub fn table_names(conn: &Connection) -> Result<Vec<String>> {
          WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
     )?;
     let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
-    rows.collect()
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
 
 #[cfg(test)]
@@ -66,16 +101,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn schema_creates_all_tables() {
+    fn creates_all_tables() {
         let conn = open_in_memory().unwrap();
-        let mut expected: Vec<String> = SCHEMA.iter().map(|(t, _)| t.to_string()).collect();
-        expected.sort();
-        assert_eq!(table_names(&conn).unwrap(), expected);
+        assert_eq!(
+            table_names(&conn).unwrap(),
+            [
+                "anime",
+                "anime_list",
+                "anime_settings",
+                "history",
+                "meta",
+                "queue"
+            ]
+        );
     }
 
     #[test]
-    fn schema_is_idempotent() {
-        let conn = open_in_memory().unwrap();
-        init(&conn).unwrap();
+    fn reopening_a_file_keeps_data() {
+        let dir = std::env::temp_dir().join(format!("tracker-db-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(FILE_NAME);
+        let _ = std::fs::remove_file(&path);
+
+        let conn = open(&path).unwrap();
+        meta::set(&conn, "version", "1.2.3").unwrap();
+        drop(conn);
+
+        let conn = open(&path).unwrap();
+        assert_eq!(
+            meta::get(&conn, "version").unwrap().as_deref(),
+            Some("1.2.3")
+        );
+        drop(conn);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

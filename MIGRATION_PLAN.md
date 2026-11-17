@@ -173,12 +173,14 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 - [ ] Vendor resources: `players.anisthesia`, `anime-relations.txt`, `gql/*.gql`, SVG icons
 - **Exit:** an empty Tauri window builds in CI and produces an installer artifact
 
-### Phase 1: Core domain and storage (1–2 weeks)
-- [ ] `core`: port `anime.hpp`, `anime_list.hpp`, `anime_settings.hpp`, `anime_season`, `FuzzyDate`, all enums with stable integer values (they're stored in the DB)
-- [ ] `db`: migrations from `create*.sql`, repositories for anime, list, settings, history, queue, meta. Fix the `anime_list` FK, which points at a non-existent `media` table
-- [ ] Settings store with the same key namespace as `taiga/settings.hpp`, plus change notifications
-- [ ] Data path: portable mode (next to the exe) vs `%APPDATA%`
-- **Exit:** repository round-trip tests pass, and a sample DB loads
+### Phase 1: Core domain and storage (1–2 weeks) ✅
+- [x] `core`: port `anime.hpp`, `anime_list.hpp`, `anime_settings.hpp`, `anime_season`, `FuzzyDate`, all enums with stable integer values (they're stored in the DB)
+- [x] `db`: migrations from `create*.sql`, repositories for anime, list, settings, history, queue, meta. Fix the `anime_list` FK, which points at a non-existent `media` table
+  - Migration 2 also re-keys `anime_list` by `media_id`: Taiga keys it by the service entry ID, which is 0 for every unsynced entry, so they overwrote each other
+  - Foreign keys stay unenforced, as in Taiga (history and queue can refer to deleted anime)
+- [x] Settings store with the same key namespace as `taiga/settings.hpp`, plus change notifications (`crates/settings`, Taiga's `settings.json` format, unknown keys preserved)
+- [x] Data path: portable mode (a `portable` file next to the exe) vs `%APPDATA%`
+- **Exit:** repository round-trip tests pass, and a sample DB loads (`crates/db/tests/taiga_v2.rs` builds a database the way Taiga writes it)
 
 ### Phase 2: Sync services (3–4 weeks)
 - [ ] `trait SyncService { authenticate, fetch_anime, search, fetch_list, add/update/delete_entry, anime_page_url }`

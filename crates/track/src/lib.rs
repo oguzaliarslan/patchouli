@@ -4,14 +4,10 @@
 //! Phase 5: port Taiga `src/track/update_decision.cpp` and `update_session.cpp`
 //! as pure code with an injected clock.
 
-use serde::{Deserialize, Serialize};
+//!
+//! The update trigger setting lives in `tracker_settings::UpdateTrigger`.
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub enum UpdateTrigger {
-    #[default]
-    AfterDelay,
-    OnPlayerClose,
-}
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Phase {

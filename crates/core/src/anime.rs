@@ -42,7 +42,32 @@ pub enum Type {
     Music = 6,
 }
 
+int_enum!(AgeRating {
+    Unknown,
+    G,
+    Pg,
+    Pg13,
+    R17,
+    R18
+});
+int_enum!(Status {
+    Unknown,
+    FinishedAiring,
+    Airing,
+    NotYetAired
+});
+int_enum!(Type {
+    Unknown,
+    Tv,
+    Ova,
+    Movie,
+    Special,
+    Ona,
+    Music
+});
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum TitleLanguage {
     #[default]
     Romaji,
@@ -73,6 +98,7 @@ pub struct Anime {
     pub score: f32,
     pub popularity_rank: i32,
     pub image_url: String,
+    /// Not persisted (Taiga doesn't store it either).
     pub slug: String,
     pub synopsis: String,
     pub trailer_id: String,

@@ -3934,6 +3934,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
  "tracker-db",
+ "tracker-settings",
 ]
 
 [[package]]
@@ -3946,6 +3947,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags 2.13.2",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3953,6 +3955,8 @@ name = "tracker-db"
 version = "0.1.0"
 dependencies = [
  "rusqlite",
+ "serde_json",
+ "tracker-core",
 ]
 
 [[package]]
@@ -3964,15 +3968,21 @@ name = "tracker-recognition"
 version = "0.1.0"
 
 [[package]]
+name = "tracker-settings"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tracker-core",
+]
+
+[[package]]
 name = "tracker-share"
 version = "0.1.0"
 
 [[package]]
 name = "tracker-sync"
 version = "0.1.0"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "tracker-track"

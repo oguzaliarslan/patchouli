@@ -8,8 +8,9 @@ A Rust + Tauri port of [Taiga](https://github.com/erengy/taiga): detects anime p
 
 ```
 crates/
-  core/         domain types (Anime, ListEntry, enums, Fields bitflags)
-  db/           SQLite schema (Taiga v2 compatible) and access
+  core/         domain types (Anime, ListEntry, FuzzyDate, Season, ServiceId, ...)
+  db/           SQLite storage: migrations and per-table repositories (opens Taiga v2 databases)
+  settings/     settings.json store (Taiga v2 format) with change notifications
   anitomy/      filename parser (phase 4)
   detect/       media player detection (phase 5)
   recognition/  title matching, anime-relations, library scan (phase 4)
@@ -46,4 +47,6 @@ cargo test --workspace
 npm run build
 ```
 
-`npm run dev` starts Vite on port 1420 and opens the Tauri window. `npm run build` produces an NSIS installer in `target/release/bundle/nsis/`.
+`npm run dev` starts Vite on port 1420 and opens the Tauri window.
+
+Data (`media.sqlite`, `settings.json`) goes in `%APPDATA%\app.tracker.desktop`. To run in portable mode, put an empty file named `portable` next to the executable, and data goes in `data\` beside it instead. `npm run build` produces an NSIS installer in `target/release/bundle/nsis/`.
