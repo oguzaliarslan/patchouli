@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use tracker_compat::xml::{Element, parse, remove_invalid_character_references};
+use patchouli_compat::xml::{Element, parse, remove_invalid_character_references};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Channel {

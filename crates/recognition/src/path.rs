@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use tracker_anitomy::{ElementKind, Options};
+use patchouli_anitomy::{ElementKind, Options};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PathInfo {
@@ -26,7 +26,7 @@ fn is_library_folder(dir: &Path, library_folders: &[String]) -> bool {
 }
 
 fn has_title(name: &str) -> bool {
-    tracker_anitomy::parse(name)
+    patchouli_anitomy::parse(name)
         .iter()
         .any(|e| e.kind == ElementKind::Title)
 }
@@ -37,7 +37,7 @@ fn is_invalid_name(name: &str) -> bool {
 }
 
 fn season_number(name: &str) -> String {
-    tracker_anitomy::parse(name)
+    patchouli_anitomy::parse(name)
         .into_iter()
         .find(|e| e.kind == ElementKind::Season)
         .map(|e| e.value)
@@ -87,7 +87,7 @@ fn extract_title(name: &str) -> String {
         parse_file_extension: false,
         ..Options::default()
     };
-    tracker_anitomy::parse_with(name, &options)
+    patchouli_anitomy::parse_with(name, &options)
         .into_iter()
         .find(|e| e.kind == ElementKind::Title)
         .map_or_else(|| name.to_owned(), |e| e.value)

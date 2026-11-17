@@ -43,7 +43,7 @@ export function capitalize(s: string): string {
 
 type TitleLanguage = Settings["app.titleLanguage"];
 
-/** Taiga's `preferredTitle`: custom title, then the chosen language, then romaji. */
+/** Uses a custom title, then the chosen language, then romaji. */
 export function preferredTitle(
   anime: Anime | null | undefined,
   language: TitleLanguage,
@@ -62,7 +62,7 @@ export function itemTitle(item: ListItem, language: TitleLanguage): string {
   return preferredTitle(item.anime, language, item.displayTitle, item.entry.animeId);
 }
 
-/** Taiga's `isNsfw`. */
+/** Checks whether an anime is marked as adult content. */
 export function isNsfw(anime: Anime | null | undefined): boolean {
   if (!anime) return false;
   if (anime.ageRating === "R18") return true;
@@ -155,7 +155,7 @@ export interface ScoreOption {
 const range = (from: number, to: number, step: number) =>
   Array.from({ length: Math.floor((to - from) / step) + 1 }, (_, i) => from + i * step);
 
-/** Choices for a score on a 0–100 scale, as in Taiga's `ratingList`. */
+/** Choices for a score on a 0–100 scale. */
 export function scoreOptions(format: string | null | undefined): ScoreOption[] {
   switch (format as ScoreFormat) {
     case "POINT_100":
@@ -182,7 +182,7 @@ export function scoreOptions(format: string | null | undefined): ScoreOption[] {
   }
 }
 
-/** Taiga's `formatRating`. */
+/** Formats a stored score using the account's rating scale. */
 export function formatScore(value: number, format: string | null | undefined): string {
   if (!value) return "—";
   switch (format as ScoreFormat) {

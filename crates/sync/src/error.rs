@@ -19,7 +19,7 @@ pub enum Error {
     Auth(String),
     /// Tokens couldn't be read from or written to the credential store.
     Credentials(String),
-    Database(tracker_db::Error),
+    Database(patchouli_db::Error),
     Io(std::io::Error),
     NotLoggedIn,
 }
@@ -70,8 +70,8 @@ impl From<reqwest::Error> for Error {
     }
 }
 
-impl From<tracker_db::Error> for Error {
-    fn from(e: tracker_db::Error) -> Self {
+impl From<patchouli_db::Error> for Error {
+    fn from(e: patchouli_db::Error) -> Self {
         Self::Database(e)
     }
 }

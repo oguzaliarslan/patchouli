@@ -1,5 +1,5 @@
 [package]
-name = "tracker-core"
+name = "patchouli-core"
 description = "Domain types: anime, list entries, dates"
 version.workspace = true
 edition.workspace = true

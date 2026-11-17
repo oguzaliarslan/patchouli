@@ -9,13 +9,13 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use serde_json::{Map, Value, json};
-use tracker_core::anime::{AgeRating, Status, Titles, Type};
-use tracker_core::feed::{Condition, Element as Element_, Filter, Operator};
-use tracker_core::{
+use patchouli_core::anime::{AgeRating, Status, Titles, Type};
+use patchouli_core::feed::{Condition, Element as Element_, Filter, Operator};
+use patchouli_core::{
     Anime, AnimeSettings, Fields, FuzzyDate, HistoryItem, ListEntry, ListStatus, QueueItem,
     ServiceId,
 };
+use serde_json::{Map, Value, json};
 
 use crate::xml::{Element, parse, remove_invalid_character_references};
 use crate::{ImportData, read_text};

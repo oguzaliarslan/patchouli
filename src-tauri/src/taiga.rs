@@ -2,11 +2,11 @@
 
 use std::path::PathBuf;
 
+use patchouli_compat::{Found, ImportData, TaigaVersion};
+use patchouli_core::ServiceId;
+use patchouli_db::{anime, anime_settings, history, list, meta, queue};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
-use tracker_compat::{Found, ImportData, TaigaVersion};
-use tracker_core::ServiceId;
-use tracker_db::{anime, anime_settings, history, list, meta, queue};
 
 use crate::AppState;
 use crate::error::{CommandError, CommandResult};
@@ -59,9 +59,9 @@ fn summary(found: &Found, data: &ImportData) -> Summary {
 
 fn locate(path: Option<String>) -> CommandResult<Found> {
     match path {
-        Some(path) => tracker_compat::locate(&PathBuf::from(&path))
+        Some(path) => patchouli_compat::locate(&PathBuf::from(&path))
             .ok_or_else(|| CommandError::new(format!("No Taiga data was found in \"{path}\"."))),
-        None => tracker_compat::default_locations()
+        None => patchouli_compat::default_locations()
             .into_iter()
             .next()
             .ok_or_else(|| CommandError::new("No Taiga data was found.")),
@@ -70,11 +70,11 @@ fn locate(path: Option<String>) -> CommandResult<Found> {
 
 #[tauri::command]
 pub fn taiga_detect(state: State<'_, AppState>) -> CommandResult<Detection> {
-    let found = tracker_compat::default_locations();
+    let found = patchouli_compat::default_locations();
     let db = state.db.lock()?;
     let prompt = !found.is_empty()
         && meta::get(&db, META_TAIGA_IMPORT)?.is_none()
-        && !tracker_db::has_list_data(&db)?;
+        && !patchouli_db::has_list_data(&db)?;
     Ok(Detection { found, prompt })
 }
 
@@ -84,7 +84,7 @@ pub fn taiga_detect(state: State<'_, AppState>) -> CommandResult<Detection> {
 pub async fn taiga_preview(path: Option<String>) -> CommandResult<Summary> {
     tauri::async_runtime::spawn_blocking(move || {
         let found = locate(path)?;
-        let data = tracker_compat::read(&found).map_err(CommandError::new)?;
+        let data = patchouli_compat::read(&found).map_err(CommandError::new)?;
         Ok(summary(&found, &data))
     })
     .await
@@ -103,7 +103,7 @@ pub async fn taiga_import(
 ) -> CommandResult<Summary> {
     let (found, data) = tauri::async_runtime::spawn_blocking(move || {
         let found = locate(path)?;
-        let data = tracker_compat::read(&found).map_err(CommandError::new)?;
+        let data = patchouli_compat::read(&found).map_err(CommandError::new)?;
         Ok::<_, CommandError>((found, data))
     })
     .await
@@ -119,7 +119,7 @@ pub async fn taiga_import(
 
     {
         let db = state.db.lock()?;
-        if tracker_db::has_list_data(&db)? && !replace_local {
+        if patchouli_db::has_list_data(&db)? && !replace_local {
             return Err(CommandError::with_code(
                 "replace-local-data",
                 "Importing from Taiga replaces your local list, \
@@ -144,8 +144,8 @@ pub async fn taiga_import(
     }
     state.recognition.invalidate();
     crate::sharing::schedule_update(&app);
-    let _ = app.emit(SYNC_EVENT, tracker_sync::SyncEvent::ListChanged);
-    let _ = app.emit(SYNC_EVENT, tracker_sync::SyncEvent::QueueChanged);
+    let _ = app.emit(SYNC_EVENT, patchouli_sync::SyncEvent::ListChanged);
+    let _ = app.emit(SYNC_EVENT, patchouli_sync::SyncEvent::QueueChanged);
     log::info!(
         "Imported from Taiga {:?} at {}: {} entries, {} history items, {} queued",
         found.version,
@@ -158,12 +158,12 @@ pub async fn taiga_import(
 }
 
 fn write(
-    db: &tracker_db::Connection,
+    db: &patchouli_db::Connection,
     service: ServiceId,
     data: &ImportData,
-) -> tracker_db::Result<()> {
-    tracker_db::in_transaction(db, |tx| {
-        tracker_db::clear_service_data(tx)?;
+) -> patchouli_db::Result<()> {
+    patchouli_db::in_transaction(db, |tx| {
+        patchouli_db::clear_service_data(tx)?;
         anime::upsert_many(tx, &data.anime)?;
         list::upsert_many(tx, &data.entries)?;
         for settings in &data.anime_settings {
@@ -191,13 +191,13 @@ pub fn taiga_dismiss(state: State<'_, AppState>) -> CommandResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use tracker_core::{Fields, HistoryItem, ListEntry, QueueItem};
+    use patchouli_core::{Fields, HistoryItem, ListEntry, QueueItem};
 
     use super::*;
 
     #[test]
     fn write_replaces_service_data_and_keeps_times() {
-        let db = tracker_db::open_in_memory().unwrap();
+        let db = patchouli_db::open_in_memory().unwrap();
         list::upsert(
             &db,
             &ListEntry {
@@ -209,7 +209,7 @@ mod tests {
         history::add(&db, 1, 1, 100).unwrap();
 
         let data = ImportData {
-            anime: vec![tracker_core::Anime {
+            anime: vec![patchouli_core::Anime {
                 id: 21,
                 ..Default::default()
             }],

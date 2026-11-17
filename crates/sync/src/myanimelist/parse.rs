@@ -1,6 +1,6 @@
+use patchouli_core::anime::{AgeRating, Status, Titles, Type};
+use patchouli_core::{Anime, FuzzyDate, ListEntry, ListStatus};
 use serde_json::Value;
-use tracker_core::anime::{AgeRating, Status, Titles, Type};
-use tracker_core::{Anime, FuzzyDate, ListEntry, ListStatus};
 
 fn int32(value: &Value) -> i32 {
     value.as_i64().unwrap_or_default() as i32
@@ -166,7 +166,7 @@ pub fn parse_list_entry(json: &Value, anime_id: i32) -> Option<ListEntry> {
         anime_id,
         watched_episodes: int32(&json["num_episodes_watched"]),
         // 0–10 to 0–100.
-        score: int32(&json["score"]) * (tracker_core::list::SCORE_MAX / 10),
+        score: int32(&json["score"]) * (patchouli_core::list::SCORE_MAX / 10),
         status: list_status(json["status"].as_str().unwrap_or_default()),
         is_private: false,
         rewatched_times: int32(&json["num_times_rewatched"]),

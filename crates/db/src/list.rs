@@ -1,7 +1,7 @@
 //! The user's list (`anime_list` table), one entry per anime.
 
+use patchouli_core::{FuzzyDate, ListEntry, ListStatus};
 use rusqlite::{Connection, OptionalExtension, Row, named_params};
-use tracker_core::{FuzzyDate, ListEntry, ListStatus};
 
 use crate::Result;
 use crate::value::{boolean, int, int32, text};

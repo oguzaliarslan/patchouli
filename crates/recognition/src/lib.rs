@@ -19,9 +19,9 @@ pub mod scanner;
 use std::collections::HashMap;
 use std::path::Path;
 
+use patchouli_anitomy::ElementKind;
+use patchouli_core::{Anime, AnimeSettings};
 use serde::Serialize;
-use tracker_anitomy::ElementKind;
-use tracker_core::{Anime, AnimeSettings};
 
 pub use episode::Episode;
 pub use index::{Match, TitleIndex};
@@ -192,8 +192,8 @@ impl Recognizer {
 
 #[cfg(test)]
 mod tests {
-    use tracker_core::FuzzyDate;
-    use tracker_core::anime::Titles;
+    use patchouli_core::FuzzyDate;
+    use patchouli_core::anime::Titles;
 
     use super::*;
 
@@ -214,7 +214,7 @@ mod tests {
     fn recognizer() -> Recognizer {
         let relations = Relations::parse(
             "::rules\n- 31646|11380|21366:23-44 -> 35180|13401|98478:1-22\n",
-            tracker_core::ServiceId::AniList,
+            patchouli_core::ServiceId::AniList,
         );
         Recognizer::new(
             vec![

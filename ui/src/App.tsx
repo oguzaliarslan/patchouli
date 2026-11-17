@@ -68,7 +68,7 @@ export default function App() {
     <AppContext.Provider value={actions}>
       <div className="shell">
         <nav className="sidebar" aria-label="Main">
-          <div className="brand">Tracker</div>
+          <div className="brand">Patchouli</div>
           {NAV.map((item) => (
             <NavButton key={item.id} item={item} active={page === item.id} onClick={() => setPage(item.id)} />
           ))}

@@ -1,7 +1,7 @@
 //! Per-anime user overrides (`anime_settings` table).
 
+use patchouli_core::AnimeSettings;
 use rusqlite::{Connection, OptionalExtension, Row, named_params};
-use tracker_core::AnimeSettings;
 
 use crate::Result;
 use crate::value::{int32, string_list, text, to_json};

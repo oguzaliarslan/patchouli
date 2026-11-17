@@ -6,7 +6,7 @@
 //! detection matches on it:
 //!
 //! ```text
-//! cargo build -p tracker-detect --example fake_player
+//! cargo build -p patchouli-detect --example fake_player
 //! copy target\debug\examples\fake_player.exe %TEMP%\mpv.exe
 //! %TEMP%\mpv.exe mpv "Show - 01.mkv - mpv" D:\Anime\Show - 01.mkv 30
 //! ```

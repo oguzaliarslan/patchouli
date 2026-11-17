@@ -20,6 +20,7 @@ export interface AppInfo {
  * Unknown keys are kept, so always send back the whole object.
  */
 export interface Settings {
+  "app.checkForUpdates": boolean;
   "app.closeToTray": boolean;
   "app.colorScheme": "system" | "light" | "dark";
   "app.hideNsfw": boolean;
@@ -445,7 +446,21 @@ export function errorCode(e: unknown): string | null {
   return null;
 }
 
+export interface AvailableUpdate {
+  version: string;
+  currentVersion: string;
+  notes: string | null;
+  date: string | null;
+}
+
 export const api = {
+  updateStatus: () => invoke<{ configured: boolean; available: AvailableUpdate | null }>("update_status"),
+  checkUpdate: () => invoke<AvailableUpdate | null>("update_check"),
+  installUpdate: () => invoke<void>("update_install"),
+  onUpdateAvailable: (handler: (update: AvailableUpdate) => void) =>
+    listen<AvailableUpdate>("update-available", (event) => handler(event.payload)),
+  onUpdateProgress: (handler: (progress: { downloaded: number; total: number | null }) => void) =>
+    listen<{ downloaded: number; total: number | null }>("update-progress", (event) => handler(event.payload)),
   appInfo: () => invoke<AppInfo>("app_info"),
   getSettings: () => invoke<Settings>("settings_get"),
   /** Returns the keys that changed. */

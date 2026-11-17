@@ -3,8 +3,8 @@
 
 use std::cmp::Ordering;
 
-use tracker_core::feed::{Action, Condition, Element, Filter, Match, Operator};
-use tracker_core::{Anime, ListEntry, ListStatus};
+use patchouli_core::feed::{Action, Condition, Element, Filter, Match, Operator};
+use patchouli_core::{Anime, ListEntry, ListStatus};
 
 use crate::item::{FeedItem, State, parse_size, resolution_height};
 
@@ -48,7 +48,7 @@ pub fn replace_variables(value: &str, item: &FeedItem, library: &dyn Library) ->
             "rewatching" => i32::from(entry.is_some_and(|e| e.rewatching)).to_string(),
             "notes" => entry.map(|e| e.notes.clone()).unwrap_or_default(),
             "name" => episode
-                .element(tracker_anitomy::ElementKind::EpisodeTitle)
+                .element(patchouli_anitomy::ElementKind::EpisodeTitle)
                 .unwrap_or_default()
                 .to_owned(),
             "episode" => item.episode.number.trim_start_matches('0').to_owned(),
@@ -57,11 +57,11 @@ pub fn replace_variables(value: &str, item: &FeedItem, library: &dyn Library) ->
             "resolution" => item.resolution().to_owned(),
             "video" => item.video_terms(),
             "audio" => episode
-                .values(tracker_anitomy::ElementKind::AudioTerm)
+                .values(patchouli_anitomy::ElementKind::AudioTerm)
                 .collect::<Vec<_>>()
                 .join(" "),
             "checksum" => episode
-                .element(tracker_anitomy::ElementKind::FileChecksum)
+                .element(patchouli_anitomy::ElementKind::FileChecksum)
                 .unwrap_or_default()
                 .to_owned(),
             "file" => item.title.clone(),

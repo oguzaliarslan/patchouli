@@ -1,7 +1,7 @@
 //! An episode parsed from a file name (Taiga `track/episode.cpp`).
 
+use patchouli_anitomy::{Element, ElementKind};
 use serde::Serialize;
-use tracker_anitomy::{Element, ElementKind};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,7 +17,7 @@ pub(crate) fn to_int(value: &str) -> i32 {
 impl Episode {
     pub fn parse(input: &str) -> Self {
         Self {
-            elements: tracker_anitomy::parse(input),
+            elements: patchouli_anitomy::parse(input),
         }
     }
 

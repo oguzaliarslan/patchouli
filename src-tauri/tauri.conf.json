@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Tracker",
+  "productName": "Patchouli",
   "version": "0.1.0",
   "identifier": "app.tracker.desktop",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Tracker",
+        "title": "Patchouli",
         "visible": false,
         "width": 1200,
         "height": 780,
@@ -26,13 +26,26 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.ico"
     ],
-    "resources": ["resources/*"]
+    "resources": [
+      "resources/*"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERFMDg2NzY3MzcyRUI4RkQKUldUOXVDNDNaMmNJM2tBV2RKanY5L3RINWVEYW5rSStFbjlsZGRnUThyQ3J0NERIN3J1SW8vaVEK",
+      "requireSignedVersion": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

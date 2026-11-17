@@ -1,8 +1,8 @@
-# Tracker
+# Patchouli
 
-A Rust + Tauri port of [Taiga](https://github.com/erengy/taiga): detects anime playing in media players and syncs progress to AniList, Kitsu or MyAnimeList. See [MIGRATION_PLAN.md](MIGRATION_PLAN.md) for the plan.
+Patchouli detects anime playing in media players and syncs your progress to AniList or MyAnimeList. It is a Rust and Tauri port of [Taiga](https://github.com/erengy/taiga). See [MIGRATION_PLAN.md](MIGRATION_PLAN.md) for the migration plan.
 
-"Tracker" and `app.tracker.desktop` are placeholder names.
+Patchouli retains its existing app identifier, `app.tracker.desktop`, so existing installations can access their data and saved logins.
 
 ## Layout
 
@@ -53,11 +53,11 @@ npm run build
 To see what player detection finds right now, or to test it without a real player:
 
 ```bash
-cargo run -p tracker-detect --example detect
+cargo run -p patchouli-detect --example detect
 ```
 
 ```bash
-cargo build -p tracker-detect --example fake_player
+cargo build -p patchouli-detect --example fake_player
 ```
 
 `fake_player` opens a file and shows a window with a given class and title; copy it to a player's executable name (e.g. `mpc-hc64.exe`) and run it with `<window class> <title> <file> <seconds>`.
@@ -88,12 +88,12 @@ Tokens are kept in Windows Credential Manager (under `app.tracker.desktop`), not
 To run the test that writes to the real credential store:
 
 ```bash
-cargo test -p tracker-app -- --ignored
+cargo test -p patchouli -- --ignored
 ```
 
 ## Discord status
 
-Create an application at <https://discord.com/developers/applications> (its name is what Discord shows, e.g. "Watching Tracker"), and set its ID:
+Create an application at <https://discord.com/developers/applications> (its name is what Discord shows, e.g. "Watching Patchouli"), and set its ID:
 
 ```powershell
 $env:TRACKER_DISCORD_APP_ID = "123456789012345678"
@@ -119,8 +119,26 @@ Player detection on Linux uses MPRIS (mpv needs the `mpv-mpris` script), and on 
 
 ## Logs
 
-Logs go in `logs\tracker_<date>.log` in the data folder: warnings and errors normally, more with `--debug` or `--verbose` (debug builds log debug messages too).
+Logs go in `logs\patchouli_<date>.log` in the data folder: warnings and errors normally, more with `--debug` or `--verbose` (debug builds log debug messages too).
 
 ## Data
 
 Data (`media.sqlite`, `settings.json`, `accounts.json`) goes in `%APPDATA%\app.tracker.desktop`. To run in portable mode, put an empty file named `portable` next to the executable, and data goes in `data\` beside it instead. `npm run build` produces an NSIS installer in `target/release/bundle/nsis/`.
+
+## Windows releases
+
+Run `powershell -ExecutionPolicy Bypass -File scripts/release.ps1` from the project root. It stages the x64 NSIS and MSI installers and a portable ZIP in a new folder under `target/releases`. Use `-NsisOnly` when building just the NSIS installer and ZIP.
+
+Set `PATCHOULI_SIGNING_THUMBPRINT` to the thumbprint of an Authenticode certificate with its private key available in the Windows certificate store. Omit it to build unsigned Windows packages.
+
+For an update release, set `TAURI_SIGNING_PRIVATE_KEY` to the path of the updater private key and provide its password through `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Run the release script with `-SignedUpdates` to generate installer signatures and `latest.json`. The updater requires signatures that bind each installer to the version in the manifest. Attach the generated installers, signatures, ZIP and manifest to the public GitHub release tagged `v<version>`. The script uses `oguzaliarslan/patchouli` by default. Use `-Repository owner/repo` to build for another release repository.
+
+Installed copies can check for updates under **Settings ? Application**. Portable users can extract the new ZIP into their existing portable installation folder while the app is closed. Keep the existing `data` folder.
+
+Automatic checks also refresh episode relations and player definitions daily from their upstream repositories. The app uses bundled data if the refresh fails and no prior cache exists. Updated player definitions apply on restart. A custom `anime-relations.txt` in the data folder takes precedence.
+
+## Beta diagnostics
+
+For a recognition discrepancy, test the same filename or path in Patchouli and Taiga with equivalent list data and library settings. In **Settings ? Recognition**, select **Copy recognition report** after running a test. Record the anime ID and episode range reported by both apps, and note any differences in service, library settings or relation rules. Review the copied report before sharing it.
+
+The latest Rust panic report is written to `logs/panic.log` in the data folder. Review it before sharing it with a bug report.

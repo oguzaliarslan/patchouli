@@ -3,11 +3,11 @@
 
 use std::collections::{BTreeMap, HashMap};
 
+use patchouli_core::anime::Type;
+use patchouli_core::{Anime, HistoryItem, ListEntry, ListStatus, SeasonName};
+use patchouli_db::{anime, history, list};
 use serde::Serialize;
 use tauri::State;
-use tracker_core::anime::Type;
-use tracker_core::{Anime, HistoryItem, ListEntry, ListStatus, SeasonName};
-use tracker_db::{anime, history, list};
 
 use crate::AppState;
 use crate::error::CommandResult;
@@ -181,7 +181,7 @@ pub async fn season_get(
     let (client, _) = state
         .sync
         .session()
-        .ok_or(tracker_sync::Error::NotLoggedIn)?;
+        .ok_or(patchouli_sync::Error::NotLoggedIn)?;
     let results = client.season(season, year).await?;
     let db = state.db.lock()?;
     anime::upsert_many(&db, &results)?;

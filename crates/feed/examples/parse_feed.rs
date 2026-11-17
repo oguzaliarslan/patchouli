@@ -1,5 +1,5 @@
 //! Parses a saved RSS file and prints what each item became:
-//! `cargo run -p tracker-feed --example parse_feed -- feed.xml [url]`.
+//! `cargo run -p patchouli-feed --example parse_feed -- feed.xml [url]`.
 
 fn main() {
     let mut args = std::env::args().skip(1);
@@ -8,10 +8,10 @@ fn main() {
         .expect("usage: parse_feed <file.xml> [feed url]");
     let url = args.next().unwrap_or_default();
     let text = std::fs::read_to_string(&path).expect("readable file");
-    let feed = tracker_feed::Feed::parse(&url, &text).expect("an RSS feed");
+    let feed = patchouli_feed::Feed::parse(&url, &text).expect("an RSS feed");
     println!("{}: {} items", feed.title, feed.items.len());
     let with =
-        |f: &dyn Fn(&tracker_feed::FeedItem) -> bool| feed.items.iter().filter(|i| f(i)).count();
+        |f: &dyn Fn(&patchouli_feed::FeedItem) -> bool| feed.items.iter().filter(|i| f(i)).count();
     println!(
         "size: {}  seeders: {}  magnet: {}  info link: {}  date: {}  episode: {}  group: {}",
         with(&|i| i.file_size > 0),

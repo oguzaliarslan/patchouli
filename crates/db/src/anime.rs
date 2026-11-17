@@ -1,8 +1,8 @@
 //! Anime metadata (`anime` table).
 
+use patchouli_core::anime::{AgeRating, Status, Titles, Type};
+use patchouli_core::{Anime, FuzzyDate};
 use rusqlite::{Connection, OptionalExtension, Row, named_params};
-use tracker_core::anime::{AgeRating, Status, Titles, Type};
-use tracker_core::{Anime, FuzzyDate};
 
 use crate::Result;
 use crate::value::{int, int32, real, string_list, text, to_json};

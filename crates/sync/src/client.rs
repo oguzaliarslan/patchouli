@@ -1,4 +1,4 @@
-use tracker_core::{Anime, Fields, ListEntry, SeasonName, ServiceId};
+use patchouli_core::{Anime, Fields, ListEntry, SeasonName, ServiceId};
 
 use crate::accounts::Account;
 use crate::anilist::{self, AniList};

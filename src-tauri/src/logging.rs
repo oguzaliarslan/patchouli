@@ -1,4 +1,4 @@
-//! Log files (Taiga `base/log.cpp`): `<data>/logs/tracker_<date>.log`.
+//! Log files (Taiga `base/log.cpp`): `<data>/logs/patchouli_<date>.log`.
 //!
 //! Warnings and errors by default; `--debug` adds debug messages and
 //! `--verbose` everything. Debug builds log debug messages too.
@@ -28,7 +28,7 @@ pub fn init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         .clear_targets()
         .target(Target::new(TargetKind::Folder {
             path: logs,
-            file_name: Some(format!("tracker_{date}")),
+            file_name: Some(format!("patchouli_{date}")),
         }))
         .target(Target::new(TargetKind::Stdout))
         .level(level)
@@ -51,6 +51,23 @@ pub fn init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         }
     );
     Ok(())
+}
+
+/// Keeps the latest panic report on disk for manual troubleshooting.
+pub fn install_panic_hook(directory: std::path::PathBuf) {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic| {
+        if std::fs::create_dir_all(&directory).is_ok() {
+            let report = format!(
+                "Patchouli {}\n{}\n{panic}\n{}\n",
+                env!("CARGO_PKG_VERSION"),
+                chrono::Utc::now().to_rfc3339(),
+                std::backtrace::Backtrace::force_capture(),
+            );
+            let _ = std::fs::write(directory.join("panic.log"), report);
+        }
+        previous(panic);
+    }));
 }
 
 #[cfg(test)]

@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use patchouli_core::ServiceId;
 use serde::{Deserialize, Serialize};
-use tracker_core::ServiceId;
 
 use crate::Result;
 

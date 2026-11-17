@@ -17,14 +17,14 @@ pub fn show_main(app: &AppHandle) {
 }
 
 pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
-    let show = MenuItem::with_id(app, "show", "Show Tracker", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Show Patchouli", true, None::<&str>)?;
     let sync = MenuItem::with_id(app, "sync", "Sync now", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
     let menu = Menu::with_items(app, &[&show, &sync, &separator, &quit])?;
 
     let mut tray = TrayIconBuilder::with_id("main")
-        .tooltip("Tracker")
+        .tooltip("Patchouli")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {

@@ -1,7 +1,7 @@
 //! Anime video filename parser, ported from [erengy/anitomy] (MPL-2.0).
 //!
 //! ```
-//! use tracker_anitomy::{parse, ElementKind};
+//! use patchouli_anitomy::{parse, ElementKind};
 //!
 //! let elements = parse("[TaigaSubs]_Toradora!_(2008)_-_01v2_-_Tiger_and_Dragon_[1280x720_H.264_FLAC][1234ABCD].mkv");
 //! let title = elements.iter().find(|e| e.kind == ElementKind::Title).unwrap();

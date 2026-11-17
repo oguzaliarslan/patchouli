@@ -2,11 +2,11 @@
 
 use std::sync::{Arc, Mutex};
 
+use patchouli_core::{Fields, ListEntry, ListStatus};
+use patchouli_db::{Connection, list, queue};
+use patchouli_sync::anilist::AniList;
+use patchouli_sync::{Account, Client, Error, Synchronizer};
 use serde_json::{Value, json};
-use tracker_core::{Fields, ListEntry, ListStatus};
-use tracker_db::{Connection, list, queue};
-use tracker_sync::anilist::AniList;
-use tracker_sync::{Account, Client, Error, Synchronizer};
 use wiremock::matchers::{body_partial_json, body_string_contains, header, method};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -28,7 +28,7 @@ fn client(server: &MockServer) -> AniList {
 
 /// A synchronizer logged in to the mock server, and its database.
 fn synchronizer(server: &MockServer) -> (Synchronizer, Arc<Mutex<Connection>>) {
-    let db = Arc::new(Mutex::new(tracker_db::open_in_memory().unwrap()));
+    let db = Arc::new(Mutex::new(patchouli_db::open_in_memory().unwrap()));
     let sync = Synchronizer::new(Arc::clone(&db), |_| {});
     let account = Account {
         username: "someone".into(),
@@ -143,7 +143,7 @@ async fn queue_sends_dirty_fields_and_stores_the_new_id() {
     assert_eq!(entry.id, 555);
     // AniList returns the anime too.
     assert_eq!(
-        tracker_db::anime::get(&db, 10)
+        patchouli_db::anime::get(&db, 10)
             .unwrap()
             .unwrap()
             .titles
@@ -275,7 +275,7 @@ async fn season_fetches_every_page() {
             .await;
     }
     let anime = client(&server)
-        .season(tracker_core::SeasonName::Fall, 2024)
+        .season(patchouli_core::SeasonName::Fall, 2024)
         .await
         .unwrap();
     assert_eq!(anime.iter().map(|a| a.id).collect::<Vec<_>>(), [1, 2, 3]);

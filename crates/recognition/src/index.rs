@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use tracker_core::{Anime, AnimeSettings};
+use patchouli_core::{Anime, AnimeSettings};
 
 use crate::normalize::normalize;
 

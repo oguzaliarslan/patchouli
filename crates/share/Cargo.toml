@@ -1,5 +1,5 @@
 [package]
-name = "tracker-share"
+name = "patchouli-share"
 description = "Discord Rich Presence and webhook sharing"
 version.workspace = true
 edition.workspace = true

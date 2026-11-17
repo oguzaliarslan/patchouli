@@ -6,7 +6,7 @@ import { useApp } from "../lib/context";
 import { LIST_STATUSES, LIST_STATUS_LABELS, TYPE_LABELS, formatScore } from "../lib/format";
 import { keys, queryClient, useCurrentAccount } from "../lib/queries";
 
-/** `3 days 4 hours` from seconds (Taiga's `ToDateString`, without seconds). */
+/** `3 days 4 hours` from seconds (omitting seconds). */
 export function formatDuration(seconds: number): string {
   if (seconds < 60) return "None";
   const days = Math.floor(seconds / 86400);

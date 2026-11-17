@@ -5,7 +5,7 @@ import type { MenuEntry } from "../components/ContextMenu";
 import { LIST_STATUSES, LIST_STATUS_LABELS, isEmptyDate, scoreOptions, today } from "./format";
 
 /**
- * Taiga's `entryWithEpisodeWatched`: sets the episode and fills in the start
+ * Sets the episode and fills in the start
  * date, completion, status and rewatch count that go with it.
  */
 export function withEpisodeWatched(
@@ -59,14 +59,14 @@ export interface MenuDeps {
   openFolder: (animeId: number) => void;
 }
 
-/** Taiga's `nextEpisodeNumber`: after the last watched, or 1 once completed. */
+/** Returns the next unwatched episode, or episode 1 once completed. */
 export function nextEpisode(anime: Anime | null | undefined, entry: ListEntry | null | undefined): number {
   const next = (entry?.watchedEpisodes ?? 0) + 1;
   const total = anime?.episodeCount ?? 0;
   return total > 0 && next > total ? 1 : next;
 }
 
-/** The right-click menu for an anime, as in Taiga's `MediaMenu`. */
+/** The right-click menu for an anime. */
 export function animeMenu(target: MenuTarget, deps: MenuDeps): MenuEntry[] {
   const { animeId, anime, entry, title } = target;
   const inList = !!entry && entry.status !== "NotInList" && !entry.pendingDelete;
@@ -116,7 +116,7 @@ export function animeMenu(target: MenuTarget, deps: MenuDeps): MenuEntry[] {
     });
   }
 
-  // Playing and folders use the library folders (Taiga's Play / Open folder).
+  // Play and Open folder use the configured library folders.
   const next = nextEpisode(anime, entry);
   items.push(
     "separator",

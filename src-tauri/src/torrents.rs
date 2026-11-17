@@ -6,18 +6,18 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use patchouli_core::feed::Preset;
+use patchouli_core::{Anime, AnimeSettings, ListEntry};
+use patchouli_db::{anime_settings, list};
+use patchouli_feed::download::{self, SortBy};
+use patchouli_feed::{Archive, Feed, FeedItem, Library, State as ItemState};
+use patchouli_recognition::Recognizer;
+use patchouli_recognition::scanner;
+use patchouli_settings::{Settings, TorrentApp, TorrentNewAction, TorrentSortBy};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
-use tracker_core::feed::Preset;
-use tracker_core::{Anime, AnimeSettings, ListEntry};
-use tracker_db::{anime_settings, list};
-use tracker_feed::download::{self, SortBy};
-use tracker_feed::{Archive, Feed, FeedItem, Library, State as ItemState};
-use tracker_recognition::Recognizer;
-use tracker_recognition::scanner;
-use tracker_settings::{Settings, TorrentApp, TorrentNewAction, TorrentSortBy};
 
 use crate::AppState;
 use crate::error::{CommandError, CommandResult};
@@ -47,7 +47,7 @@ impl Torrents {
     pub fn new(data_dir: &Path) -> Self {
         Self {
             http: reqwest::Client::builder()
-                .user_agent(concat!("Tracker/", env!("CARGO_PKG_VERSION")))
+                .user_agent(concat!("Patchouli/", env!("CARGO_PKG_VERSION")))
                 .timeout(Duration::from_secs(60))
                 .build()
                 .unwrap_or_default(),
@@ -130,7 +130,7 @@ async fn examine(app: &AppHandle, state: &AppState, raw: &Feed) -> CommandResult
             f.enabled
                 && f.conditions
                     .iter()
-                    .any(|c| c.element == tracker_core::feed::Element::LocalEpisodeAvailable)
+                    .any(|c| c.element == patchouli_core::feed::Element::LocalEpisodeAvailable)
         });
     let available = if needs_library && !settings.library_folders.is_empty() {
         available_episodes(state, &recognizer).await?
@@ -148,7 +148,7 @@ async fn examine(app: &AppHandle, state: &AppState, raw: &Feed) -> CommandResult
         let filters = settings
             .torrent_filters_enabled
             .then_some(settings.torrent_filters.as_slice());
-        tracker_feed::examine(&mut feed, &recognizer, &library, filters, &archive);
+        patchouli_feed::examine(&mut feed, &recognizer, &library, filters, &archive);
     }
     *lock(&state.torrents.feed) = Some(feed.clone());
     let _ = app.emit(TORRENTS_EVENT, &feed);
@@ -288,7 +288,7 @@ pub fn torrents_set_state(
 
 #[tauri::command]
 pub fn torrents_presets() -> Vec<Preset> {
-    tracker_core::feed::presets()
+    patchouli_core::feed::presets()
 }
 
 #[derive(Serialize)]
@@ -344,7 +344,7 @@ fn download_folder(state: &AppState, settings: &Settings, item: &FeedItem) -> Op
     }
     let mut path = PathBuf::from(&settings.torrent_download_folder);
     if settings.torrent_create_subfolder {
-        let title = tracker_db::anime::get(&db, id)
+        let title = patchouli_db::anime::get(&db, id)
             .ok()
             .flatten()
             .map_or_else(|| item.episode.title.clone(), |a| a.titles.romaji);

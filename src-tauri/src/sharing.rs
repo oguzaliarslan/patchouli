@@ -8,16 +8,16 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use serde::Serialize;
-use tauri::{AppHandle, Manager, State};
-use tracker_core::{Anime, ListEntry, ListStatus, ServiceId};
-use tracker_db::{anime, anime_settings, list};
-use tracker_recognition::Episode;
-use tracker_share::discord::{
+use patchouli_core::{Anime, ListEntry, ListStatus, ServiceId};
+use patchouli_db::{anime, anime_settings, list};
+use patchouli_recognition::Episode;
+use patchouli_share::discord::{
     Activity, ActivityType, Button, Presence, PresenceStatus, StatusDisplayType,
 };
-use tracker_share::webhook::{self, Event, EventAnime, EventEntry, EventType};
-use tracker_track::{Phase, UpdateState, watched_episode_number};
+use patchouli_share::webhook::{self, Event, EventAnime, EventEntry, EventType};
+use patchouli_track::{Phase, UpdateState, watched_episode_number};
+use serde::Serialize;
+use tauri::{AppHandle, Manager, State};
 
 use crate::AppState;
 
@@ -98,7 +98,7 @@ fn shareable(state: &AppState, anime_id: i32) -> Option<(Anime, Option<ListEntry
 }
 
 pub fn preferred_title(item: &Anime, state: &AppState) -> String {
-    use tracker_core::TitleLanguage;
+    use patchouli_core::TitleLanguage;
     let t = &item.titles;
     match state.settings.get().app_title_language {
         TitleLanguage::English if !t.english.is_empty() => t.english.clone(),
@@ -172,11 +172,11 @@ fn update(app: &AppHandle, state: &AppState) {
                         }
                     }
                 };
-                let page = tracker_sync::anime_page_url(service, item.id).unwrap_or_default();
+                let page = patchouli_sync::anime_page_url(service, item.id).unwrap_or_default();
                 let episode = Episode {
                     elements: p.elements.clone(),
                 };
-                tracker_share::discord::to_json(&Activity {
+                patchouli_share::discord::to_json(&Activity {
                     kind: ActivityType::Watching,
                     status_display_type: StatusDisplayType::Details, // "Watching <title>"
                     details: title.clone(),
@@ -270,7 +270,7 @@ fn send_event(app: &AppHandle, state: &AppState, kind: EventType, anime_id: i32,
             Some(EventAnime {
                 id: item.id,
                 title,
-                url: tracker_sync::anime_page_url(service, item.id).unwrap_or_default(),
+                url: patchouli_sync::anime_page_url(service, item.id).unwrap_or_default(),
                 episodes: item.episode_count,
                 image: item.image_url.clone(),
             }),

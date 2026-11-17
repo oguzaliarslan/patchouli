@@ -14,9 +14,9 @@ pub mod xml;
 
 use std::path::{Path, PathBuf};
 
+use patchouli_core::{Anime, AnimeSettings, HistoryItem, ListEntry, QueueItem, ServiceId};
 use serde::Serialize;
 use serde_json::{Map, Value};
-use tracker_core::{Anime, AnimeSettings, HistoryItem, ListEntry, QueueItem, ServiceId};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ImportData {
@@ -68,7 +68,7 @@ pub fn default_locations() -> Vec<Found> {
 pub fn locate(path: &Path) -> Option<Found> {
     let candidates = [path.to_path_buf(), path.join("data")];
     candidates.into_iter().find_map(|dir| {
-        if dir.join(tracker_db::FILE_NAME).is_file() {
+        if dir.join(patchouli_db::FILE_NAME).is_file() {
             Some(Found {
                 version: TaigaVersion::V2,
                 path: dir,

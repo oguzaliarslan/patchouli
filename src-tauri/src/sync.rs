@@ -2,20 +2,20 @@
 
 use std::sync::Arc;
 
+use patchouli_core::{Anime, ListEntry, QueueItem, ServiceId};
+use patchouli_db::{anime, list, meta, queue};
+use patchouli_sync::anilist::AniList;
+use patchouli_sync::myanimelist::MyAnimeList;
+use patchouli_sync::oauth::{OAuthConfig, PendingLogin};
+use patchouli_sync::{Client, CredentialStore, Credentials, SearchParams, Synchronizer};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_opener::OpenerExt;
-use tracker_core::{Anime, ListEntry, QueueItem, ServiceId};
-use tracker_db::{anime, list, meta, queue};
-use tracker_sync::anilist::AniList;
-use tracker_sync::myanimelist::MyAnimeList;
-use tracker_sync::oauth::{OAuthConfig, PendingLogin};
-use tracker_sync::{Client, CredentialStore, Credentials, SearchParams, Synchronizer};
 
 use crate::AppState;
 use crate::error::{CommandError, CommandResult};
 
-/// Event carrying a [`tracker_sync::SyncEvent`].
+/// Event carrying a [`patchouli_sync::SyncEvent`].
 pub const SYNC_EVENT: &str = "sync";
 
 /// `meta` key naming the service the local list came from.
@@ -29,7 +29,7 @@ pub fn make_client(
     credentials: Credentials,
     config: &OAuthConfig,
     store: Arc<dyn CredentialStore>,
-) -> tracker_sync::Result<Client> {
+) -> patchouli_sync::Result<Client> {
     match service {
         ServiceId::AniList => Ok(Client::AniList(AniList::new(credentials.access_token))),
         ServiceId::MyAnimeList => Ok(Client::MyAnimeList(MyAnimeList::new(
@@ -37,7 +37,7 @@ pub fn make_client(
             credentials,
             Some(store),
         ))),
-        ServiceId::Kitsu => Err(tracker_sync::Error::NotConfigured(
+        ServiceId::Kitsu => Err(patchouli_sync::Error::NotConfigured(
             "Kitsu is not supported yet.".into(),
         )),
     }
@@ -66,7 +66,7 @@ pub fn spawn_synchronize(app: &AppHandle, sync: Arc<Synchronizer>) {
         if let Err(error) = sync.synchronize().await {
             let _ = app.emit(
                 SYNC_EVENT,
-                tracker_sync::SyncEvent::Error {
+                patchouli_sync::SyncEvent::Error {
                     unauthorized: error.is_unauthorized(),
                     message: error.to_string(),
                 },
@@ -145,7 +145,7 @@ pub async fn account_login(
     let owner = {
         let db = state.db.lock()?;
         let owner = meta::get(&db, META_SERVICE)?.and_then(|s| ServiceId::from_slug(&s));
-        let replaces = owner.is_some_and(|o| o != service) && tracker_db::has_list_data(&db)?;
+        let replaces = owner.is_some_and(|o| o != service) && patchouli_db::has_list_data(&db)?;
         if replaces && !replace_local {
             let owner = owner.map(ServiceId::name).unwrap_or_default();
             return Err(CommandError::with_code(
@@ -175,7 +175,7 @@ pub async fn account_login(
     {
         let db = state.db.lock()?;
         if owner.is_some_and(|o| o != service) {
-            tracker_db::clear_service_data(&db)?;
+            patchouli_db::clear_service_data(&db)?;
         }
         meta::set(&db, META_SERVICE, service.slug())?;
     }
@@ -209,7 +209,7 @@ pub async fn profile_refresh(state: State<'_, AppState>) -> CommandResult<Accoun
     let (client, _) = state
         .sync
         .session()
-        .ok_or(tracker_sync::Error::NotLoggedIn)?;
+        .ok_or(patchouli_sync::Error::NotLoggedIn)?;
     let service = client.service();
     state.accounts.set(service, client.user().await?)?;
     Ok(status(&state, service))
@@ -279,7 +279,7 @@ pub async fn anime_search(
     let (client, _) = state
         .sync
         .session()
-        .ok_or(tracker_sync::Error::NotLoggedIn)?;
+        .ok_or(patchouli_sync::Error::NotLoggedIn)?;
     let results = client.search(&params).await?;
     let db = state.db.lock()?;
     anime::upsert_many(&db, &results)?;

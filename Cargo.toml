@@ -11,18 +11,18 @@ publish = false
 
 [workspace.dependencies]
 # Cargo warns about unused entries here, so add each crate (e.g.
-# `tracker-sync = { path = "crates/sync" }`) once something depends on it.
-tracker-core = { path = "crates/core" }
-tracker-db = { path = "crates/db" }
-tracker-settings = { path = "crates/settings" }
-tracker-sync = { path = "crates/sync" }
-tracker-anitomy = { path = "crates/anitomy" }
-tracker-recognition = { path = "crates/recognition" }
-tracker-detect = { path = "crates/detect" }
-tracker-track = { path = "crates/track" }
-tracker-share = { path = "crates/share" }
-tracker-compat = { path = "crates/compat" }
-tracker-feed = { path = "crates/feed" }
+# `patchouli-sync = { path = "crates/sync" }`) once something depends on it.
+patchouli-core = { path = "crates/core" }
+patchouli-db = { path = "crates/db" }
+patchouli-settings = { path = "crates/settings" }
+patchouli-sync = { path = "crates/sync" }
+patchouli-anitomy = { path = "crates/anitomy" }
+patchouli-recognition = { path = "crates/recognition" }
+patchouli-detect = { path = "crates/detect" }
+patchouli-track = { path = "crates/track" }
+patchouli-share = { path = "crates/share" }
+patchouli-compat = { path = "crates/compat" }
+patchouli-feed = { path = "crates/feed" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

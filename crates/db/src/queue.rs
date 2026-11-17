@@ -1,7 +1,7 @@
 //! Pending list updates (`queue` table), oldest first.
 
+use patchouli_core::{Fields, QueueItem};
 use rusqlite::{Connection, OptionalExtension, Row, named_params};
-use tracker_core::{Fields, QueueItem};
 
 use crate::Result;
 use crate::value::{int, int32, optional_text};

@@ -202,7 +202,7 @@ pub struct Condition {
     pub element: Element,
     pub operator: Operator,
     /// May contain `%watched%`, `%total%`, `%title%`, … (see
-    /// `tracker_feed::filter::replace_variables`).
+    /// `patchouli_feed::filter::replace_variables`).
     pub value: String,
 }
 

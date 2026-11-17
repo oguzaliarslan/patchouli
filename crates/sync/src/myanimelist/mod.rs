@@ -8,10 +8,10 @@ mod parse;
 
 use std::sync::Arc;
 
+use patchouli_core::{Anime, Fields, ListEntry, ListStatus, SeasonName, ServiceId};
 use reqwest::{Method, RequestBuilder, Response, StatusCode, Url};
 use serde_json::Value;
 use tokio::sync::Mutex;
-use tracker_core::{Anime, Fields, ListEntry, ListStatus, SeasonName, ServiceId};
 
 use crate::accounts::Account;
 use crate::client::{RemoteList, SavedEntry};
@@ -403,7 +403,7 @@ fn update_form(entry: &ListEntry, dirty: Fields) -> Vec<(&'static str, String)> 
         // 0–100 to MyAnimeList's 0–10.
         form.push((
             "score",
-            (entry.score * 10 / tracker_core::list::SCORE_MAX).to_string(),
+            (entry.score * 10 / patchouli_core::list::SCORE_MAX).to_string(),
         ));
     }
     if dirty.contains(Fields::REWATCHED_TIMES) {
@@ -443,8 +443,8 @@ fn season_name(season: SeasonName) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
+    use patchouli_core::FuzzyDate;
     use serde_json::json;
-    use tracker_core::FuzzyDate;
 
     use super::*;
 

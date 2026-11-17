@@ -49,7 +49,7 @@ const CARD_WIDTH = 168;
 const CARD_HEIGHT = Math.round(CARD_WIDTH * 1.5) + 76;
 const CARD_GAP = 16;
 
-/** Asks where to save, then writes the list (Taiga's export). */
+/** Asks where to save, then writes the list. */
 async function exportList(app: AppActions, format: "markdown" | "myAnimeListXml") {
   const markdown = format === "markdown";
   try {

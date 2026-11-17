@@ -14,6 +14,8 @@ import { TorrentsSection } from "./TorrentSettings";
 import { useApp } from "../lib/context";
 import { usePref } from "../lib/prefs";
 import { keys, queryClient, useAccounts, useAppInfo, usePlayers, useSettings, useTaigaDetection, useUpdateSettings } from "../lib/queries";
+import { writeText } from "../lib/clipboard";
+import { AppUpdates } from "../components/AppUpdates";
 import { importFromTaiga } from "../lib/taiga";
 import { confirmAction } from "../lib/useAnimeMenu";
 
@@ -93,6 +95,13 @@ function ApplicationSection({ settings, change }: SectionProps) {
   return (
     <section className="settings-section">
       <h2>Application</h2>
+      <Toggle
+        label="Check for updates automatically"
+        description="Checks for app releases and refreshes recognition data."
+        checked={settings["app.checkForUpdates"]}
+        onChange={(value) => change("app.checkForUpdates", value)}
+      />
+      <AppUpdates />
       <Field label="Theme" htmlFor="color-scheme">
         <select
           id="color-scheme"
@@ -122,7 +131,7 @@ function ApplicationSection({ settings, change }: SectionProps) {
       />
       <Toggle
         label="Close to tray"
-        description="Closing the window keeps Tracker running in the notification area."
+        description="Closing the window keeps Patchouli running in the notification area."
         checked={settings["app.closeToTray"]}
         onChange={(v) => change("app.closeToTray", v)}
       />
@@ -354,6 +363,16 @@ function RecognitionTester() {
       {test.isError && <p className="error">{errorMessage(test.error)}</p>}
       {result && (
         <div className="recognition-result">
+          <button
+            type="button"
+            onClick={() => {
+              const filename = test.variables?.split(/[\\/]/).pop();
+              const report = JSON.stringify({ filename, ...result }, null, 2);
+              void writeText(report).then(() => app.notify("Recognition report copied."));
+            }}
+          >
+            Copy recognition report
+          </button>
           <p>
             {id !== null ? (
               <>

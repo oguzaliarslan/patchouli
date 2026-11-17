@@ -16,10 +16,10 @@ use std::collections::HashMap;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::Duration;
 
+use patchouli_core::ServiceId;
 use reqwest::Url;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tracker_core::ServiceId;
 
 use crate::credentials::Credentials;
 use crate::{Error, Result, anilist, http, myanimelist};
@@ -322,7 +322,7 @@ const FORWARD_PAGE: &str = "<!doctype html><meta charset=utf-8><title>Logging in
 
 fn done_page(message: &str) -> String {
     format!(
-        "<!doctype html><meta charset=utf-8><title>Tracker</title>\
+        "<!doctype html><meta charset=utf-8><title>Patchouli</title>\
          <body style=\"font-family:system-ui;margin:3rem\"><p>{message}</p></body>"
     )
 }

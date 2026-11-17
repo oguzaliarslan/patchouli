@@ -1,5 +1,5 @@
 [package]
-name = "tracker-app"
+name = "patchouli"
 description = "Anime tracker desktop app"
 version.workspace = true
 edition.workspace = true
@@ -7,7 +7,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [lib]
-name = "tracker_app_lib"
+name = "patchouli_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -21,22 +21,25 @@ tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-log = "2"
+tauri-plugin-updater = "2"
 log.workspace = true
+tempfile = "3"
 chrono.workspace = true
 reqwest.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 keyring.workspace = true
 
 # Add the other workspace crates here as the app starts using them.
-tracker-core.workspace = true
-tracker-db.workspace = true
-tracker-settings.workspace = true
-tracker-sync.workspace = true
-tracker-anitomy.workspace = true
-tracker-recognition.workspace = true
-tracker-detect.workspace = true
-tracker-track.workspace = true
-tracker-share.workspace = true
-tracker-compat.workspace = true
-tracker-feed.workspace = true
+patchouli-core.workspace = true
+patchouli-db.workspace = true
+patchouli-settings.workspace = true
+patchouli-sync.workspace = true
+patchouli-anitomy.workspace = true
+patchouli-recognition.workspace = true
+patchouli-detect.workspace = true
+patchouli-track.workspace = true
+patchouli-share.workspace = true
+patchouli-compat.workspace = true
+patchouli-feed.workspace = true

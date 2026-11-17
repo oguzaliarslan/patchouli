@@ -7,10 +7,10 @@
 
 use std::path::Path;
 
+use patchouli_core::ServiceId;
+use patchouli_db::{anime, anime_settings, history, list, queue, table_names};
 use rusqlite::{Connection, OpenFlags};
 use serde_json::{Map, Value};
-use tracker_core::ServiceId;
-use tracker_db::{anime, anime_settings, history, list, queue, table_names};
 
 use crate::{ImportData, read_text};
 
@@ -51,7 +51,7 @@ pub fn read(dir: &Path) -> Result<ImportData, String> {
     // Our own key, not Taiga's.
     data.settings.remove("meta.version");
 
-    let path = dir.join(tracker_db::FILE_NAME);
+    let path = dir.join(patchouli_db::FILE_NAME);
     let conn = Connection::open_with_flags(
         &path,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
@@ -59,7 +59,7 @@ pub fn read(dir: &Path) -> Result<ImportData, String> {
     .map_err(|e| format!("{}: {e}", path.display()))?;
     let tables = table_names(&conn).map_err(|e| e.to_string())?;
     let has = |name: &str| tables.iter().any(|t| t == name);
-    let err = |e: tracker_db::Error| format!("{}: {e}", path.display());
+    let err = |e: patchouli_db::Error| format!("{}: {e}", path.display());
     if has("anime") {
         data.anime = anime::all(&conn).map_err(err)?;
     }
@@ -99,7 +99,7 @@ mod tests {
         .unwrap();
 
         // Taiga's schema, as Taiga writes it (foreign keys off).
-        let path = dir.join(tracker_db::FILE_NAME);
+        let path = dir.join(patchouli_db::FILE_NAME);
         {
             let conn = Connection::open(&path).unwrap();
             conn.pragma_update(None, "foreign_keys", false).unwrap();

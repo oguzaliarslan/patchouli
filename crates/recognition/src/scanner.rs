@@ -3,8 +3,8 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use patchouli_anitomy::ElementKind;
 use serde::Serialize;
-use tracker_anitomy::ElementKind;
 use walkdir::WalkDir;
 
 use crate::episode::to_int;
@@ -136,8 +136,8 @@ pub fn scan_library(library_folders: &[String], recognizer: &Recognizer) -> Libr
 
 #[cfg(test)]
 mod tests {
-    use tracker_core::Anime;
-    use tracker_core::anime::Titles;
+    use patchouli_core::Anime;
+    use patchouli_core::anime::Titles;
 
     use super::*;
     use crate::Relations;

@@ -6,9 +6,9 @@ mod parse;
 
 use std::collections::HashSet;
 
+use patchouli_core::anime::{Status, Type};
+use patchouli_core::{Anime, Fields, FuzzyDate, ListEntry, ListStatus, SeasonName};
 use serde_json::{Value, json};
-use tracker_core::anime::{Status, Type};
-use tracker_core::{Anime, Fields, FuzzyDate, ListEntry, ListStatus, SeasonName};
 
 use crate::accounts::Account;
 use crate::client::{RemoteList, SavedEntry};

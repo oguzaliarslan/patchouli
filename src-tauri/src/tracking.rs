@@ -8,21 +8,21 @@
 use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 
-use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_notification::NotificationExt;
-use tracker_anitomy::{Element, ElementKind};
-use tracker_core::{Anime, ListEntry};
-use tracker_db::{anime, list};
-use tracker_detect::{Player, PlayerType};
-use tracker_recognition::scanner::is_inside_library_folders;
-use tracker_settings::Settings;
-use tracker_track::media::{pick, resolve};
-use tracker_track::session::{Current, Library};
-use tracker_track::{
+use patchouli_anitomy::{Element, ElementKind};
+use patchouli_core::{Anime, ListEntry};
+use patchouli_db::{anime, list};
+use patchouli_detect::{Player, PlayerType};
+use patchouli_recognition::scanner::is_inside_library_folders;
+use patchouli_settings::Settings;
+use patchouli_track::media::{pick, resolve};
+use patchouli_track::session::{Current, Library};
+use patchouli_track::{
     Effect, UpdateSession, UpdateSettings, UpdateState, UpdateTrigger, entry_with_episode_watched,
     today,
 };
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_notification::NotificationExt;
 
 use crate::AppState;
 use crate::error::CommandResult;
@@ -60,8 +60,8 @@ pub fn update_settings(settings: &Settings) -> UpdateSettings {
     UpdateSettings {
         delay_secs: settings.update_delay_secs,
         trigger: match settings.update_trigger {
-            tracker_settings::UpdateTrigger::AfterDelay => UpdateTrigger::AfterDelay,
-            tracker_settings::UpdateTrigger::OnPlayerClose => UpdateTrigger::OnPlayerClose,
+            patchouli_settings::UpdateTrigger::AfterDelay => UpdateTrigger::AfterDelay,
+            patchouli_settings::UpdateTrigger::OnPlayerClose => UpdateTrigger::OnPlayerClose,
         },
         pause_when_unfocused: settings.update_pause_when_unfocused,
     }
@@ -141,7 +141,7 @@ pub fn start(app: &AppHandle) {
             interval.tick().await;
             let state = handle.state::<AppState>();
             let window = *lock(&state.tracker.window);
-            let focused = window.is_some() && tracker_detect::foreground_window() == window;
+            let focused = window.is_some() && patchouli_detect::foreground_window() == window;
             let effects = {
                 let mut session = lock(&state.tracker.session);
                 if !session.is_ticking() {
@@ -156,7 +156,7 @@ pub fn start(app: &AppHandle) {
 
 fn poll(app: &AppHandle, state: &AppState, settings: &Settings) {
     let players = state.tracker.enabled_players(settings);
-    let mut detections = tracker_detect::detect(&players);
+    let mut detections = patchouli_detect::detect(&players);
     // Linux and macOS find players without the player list.
     detections.retain(|d| !settings.disabled_players.contains(&d.player));
     let previous = *lock(&state.tracker.window);
@@ -264,7 +264,7 @@ fn commit(app: &AppHandle, state: &AppState, anime_id: i32, episode: i32) {
         log::warn!("Couldn't update the list: {error}");
         let _ = app.emit(
             crate::sync::SYNC_EVENT,
-            tracker_sync::SyncEvent::Error {
+            patchouli_sync::SyncEvent::Error {
                 message: format!("Couldn't update the list: {error}"),
                 unauthorized: false,
             },
@@ -282,7 +282,7 @@ fn notify_confirmation(app: &AppHandle, state: &AppState, update: UpdateState) {
         .builder()
         .title("Update your list?")
         .body(format!(
-            "Episode {} of {title} skips ahead of episode {}. Open Tracker to update.",
+            "Episode {} of {title} skips ahead of episode {}. Open Patchouli to update.",
             update.episode, update.previous_episode
         ))
         .show();

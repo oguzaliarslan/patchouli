@@ -1,5 +1,5 @@
 [package]
-name = "tracker-detect"
+name = "patchouli-detect"
 description = "Media player detection (port of erengy/anisthesia, MIT)"
 license = "MIT"
 version.workspace = true

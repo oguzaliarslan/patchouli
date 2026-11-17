@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn merge_skips_unknown_keys_and_bad_values() {
         let dir =
-            std::env::temp_dir().join(format!("tracker-settings-merge-{}", std::process::id()));
+            std::env::temp_dir().join(format!("patchouli-settings-merge-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let store = SettingsStore::load(dir.join("settings.json")).unwrap();
         let values = serde_json::json!({
@@ -241,7 +241,7 @@ mod tests {
         assert!(!changed.contains("no.such.key"));
         assert_eq!(
             store.get().sync_service,
-            tracker_core::ServiceId::MyAnimeList
+            patchouli_core::ServiceId::MyAnimeList
         );
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -254,7 +254,7 @@ mod tests {
     impl TempDir {
         fn new(name: &str) -> Self {
             let dir = std::env::temp_dir()
-                .join(format!("tracker-settings-{name}-{}", std::process::id()));
+                .join(format!("patchouli-settings-{name}-{}", std::process::id()));
             let _ = std::fs::remove_dir_all(&dir);
             std::fs::create_dir_all(&dir).unwrap();
             Self(dir)

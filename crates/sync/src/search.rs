@@ -1,6 +1,6 @@
+use patchouli_core::SeasonName;
+use patchouli_core::anime::{Status, Type};
 use serde::{Deserialize, Serialize};
-use tracker_core::SeasonName;
-use tracker_core::anime::{Status, Type};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -1,9 +1,9 @@
 //! Feed items and their categories (Taiga v1 `track/feed.cpp`).
 
+use patchouli_anitomy::ElementKind;
+use patchouli_core::feed::DiscardOption;
+use patchouli_recognition::Episode;
 use serde::Serialize;
-use tracker_anitomy::ElementKind;
-use tracker_core::feed::DiscardOption;
-use tracker_recognition::Episode;
 
 use crate::rss;
 
@@ -221,7 +221,7 @@ pub fn categorize(item: &FeedItem) -> Category {
     {
         return Category::Batch;
     }
-    if !tracker_recognition::is_valid_episode_type(episode) {
+    if !patchouli_recognition::is_valid_episode_type(episode) {
         return Category::Other;
     }
     if episode.values(ElementKind::Episode).count() > 1

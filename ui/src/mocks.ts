@@ -116,6 +116,7 @@ for (const e of [...entries.values()].filter((e) => e.status === "Watching").sli
 history.sort((a, b) => a.time - b.time);
 
 let settings: Settings = {
+  "app.checkForUpdates": true,
   "app.closeToTray": true,
   "app.colorScheme": "system",
   "app.hideNsfw": true,
@@ -305,7 +306,7 @@ export function installMocks() {
       switch (cmd) {
         case "app_info":
           return {
-            name: "tracker-app",
+            name: "patchouli",
             version: "0.1.0 (browser preview)",
             dataDir: "C:\\Users\\Sample\\AppData\\Roaming\\app.tracker.desktop",
             portable: false,
@@ -568,6 +569,10 @@ export function installMocks() {
           return { count: archived };
         case "torrents_archive_clear":
           archived = 0;
+          return null;
+        case "update_status":
+          return { configured: true, available: null };
+        case "update_check":
           return null;
         case "taiga_detect":
           return {

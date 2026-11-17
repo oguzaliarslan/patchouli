@@ -160,7 +160,7 @@ mod tests {
         meta::set(&conn, "service", "anilist").unwrap();
         list::upsert(
             &conn,
-            &tracker_core::ListEntry {
+            &patchouli_core::ListEntry {
                 anime_id: 1,
                 ..Default::default()
             },
@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn reopening_a_file_keeps_data() {
-        let dir = std::env::temp_dir().join(format!("tracker-db-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("patchouli-db-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join(FILE_NAME);
         let _ = std::fs::remove_file(&path);

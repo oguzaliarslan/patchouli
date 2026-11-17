@@ -11,10 +11,10 @@ mod store;
 
 pub use store::{Error, Listener, SettingsStore};
 
+use patchouli_core::feed::Filter;
+use patchouli_core::{ServiceId, TitleLanguage};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use tracker_core::feed::Filter;
-use tracker_core::{ServiceId, TitleLanguage};
 
 /// File name Taiga uses for its settings.
 pub const FILE_NAME: &str = "settings.json";
@@ -88,6 +88,9 @@ pub const DEFAULT_TORRENT_SEARCH: &str = "https://nyaa.si/?page=rss&c=1_2&f=0&q=
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    /// Check GitHub Releases for a new version on start.
+    #[serde(rename = "app.checkForUpdates")]
+    pub app_check_for_updates: bool,
     #[serde(rename = "app.closeToTray")]
     pub app_close_to_tray: bool,
     #[serde(rename = "app.colorScheme")]
@@ -210,6 +213,7 @@ impl Default for Settings {
     /// Taiga's defaults.
     fn default() -> Self {
         Self {
+            app_check_for_updates: true,
             app_close_to_tray: true,
             app_color_scheme: ColorScheme::System,
             app_hide_nsfw: true,
@@ -256,7 +260,7 @@ impl Default for Settings {
             torrent_use_magnet: false,
             torrent_filters_enabled: true,
             torrent_archive_max_count: 1000,
-            torrent_filters: tracker_core::feed::default_filters(),
+            torrent_filters: patchouli_core::feed::default_filters(),
             extra: Map::new(),
         }
     }

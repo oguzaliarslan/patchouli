@@ -1,7 +1,7 @@
 //! Watched episodes (`history` table), oldest first.
 
+use patchouli_core::HistoryItem;
 use rusqlite::{Connection, Row, named_params};
-use tracker_core::HistoryItem;
 
 use crate::Result;
 use crate::value::{int, int32};

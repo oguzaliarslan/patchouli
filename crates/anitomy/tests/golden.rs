@@ -35,7 +35,7 @@ fn matches_cpp_anitomy() {
                 )
             })
             .collect();
-        let actual: Vec<Row> = tracker_anitomy::parse(input)
+        let actual: Vec<Row> = patchouli_anitomy::parse(input)
             .into_iter()
             .map(|e| (e.kind.as_str().to_owned(), e.value, e.position))
             .collect();

@@ -7,8 +7,8 @@
 //! split into chunks: the first entry holds `<count>:<chunk>`, and the rest are
 //! `<name>.2`, `<name>.3`, ...
 
-use tracker_core::ServiceId;
-use tracker_sync::{CredentialStore, Credentials, Error, Result};
+use patchouli_core::ServiceId;
+use patchouli_sync::{CredentialStore, Credentials, Error, Result};
 
 /// Characters per entry, below Windows' limit of 1280.
 const CHUNK_CHARS: usize = 1000;
@@ -145,7 +145,7 @@ mod tests {
     use super::*;
 
     /// Uses the real OS credential store, so it's opt-in:
-    /// `cargo test -p tracker-app -- --ignored`
+    /// `cargo test -p patchouli -- --ignored`
     #[test]
     #[ignore = "writes to the OS credential store"]
     fn round_trips_through_the_os_store() {

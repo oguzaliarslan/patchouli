@@ -9,7 +9,7 @@
 //! - Safari, Chrome, Brave, Edge, Vivaldi, Arc: the active tab's URL and title
 //!
 //! IINA, mpv and Firefox have no AppleScript support and aren't detected.
-//! macOS asks once per app whether Tracker may control it.
+//! macOS asks once per app whether Patchouli may control it.
 
 use crate::{Detection, MediaInfo, MediaInfoKind, PlayerType};
 

@@ -1,6 +1,6 @@
+use patchouli_core::anime::{AgeRating, Status, Titles, Type};
+use patchouli_core::{Anime, FuzzyDate, ListEntry, ListStatus};
 use serde_json::Value;
-use tracker_core::anime::{AgeRating, Status, Titles, Type};
-use tracker_core::{Anime, FuzzyDate, ListEntry, ListStatus};
 
 fn int(value: &Value) -> i64 {
     value.as_i64().unwrap_or_default()

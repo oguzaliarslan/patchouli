@@ -1,5 +1,5 @@
 [package]
-name = "tracker-track"
+name = "patchouli-track"
 description = "What is playing, and when to update the list"
 version.workspace = true
 edition.workspace = true
@@ -7,9 +7,9 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-tracker-core.workspace = true
-tracker-detect.workspace = true
-tracker-recognition.workspace = true
-tracker-anitomy.workspace = true
+patchouli-core.workspace = true
+patchouli-detect.workspace = true
+patchouli-recognition.workspace = true
+patchouli-anitomy.workspace = true
 serde.workspace = true
 chrono.workspace = true

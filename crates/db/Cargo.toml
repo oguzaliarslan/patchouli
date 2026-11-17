@@ -1,5 +1,5 @@
 [package]
-name = "tracker-db"
+name = "patchouli-db"
 description = "SQLite storage, able to open Taiga v2 databases"
 version.workspace = true
 edition.workspace = true
@@ -7,7 +7,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-tracker-core.workspace = true
+patchouli-core.workspace = true
 rusqlite.workspace = true
 serde_json.workspace = true
 

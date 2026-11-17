@@ -13,9 +13,9 @@ pub mod source;
 
 use std::path::{Path, PathBuf};
 
+use patchouli_core::feed::Filter;
+use patchouli_recognition::{Episode, Recognizer};
 use serde::Serialize;
-use tracker_core::feed::Filter;
-use tracker_recognition::{Episode, Recognizer};
 
 pub use filter::Library;
 pub use item::{Category, EpisodeInfo, FeedItem, State};
@@ -152,12 +152,12 @@ impl Archive {
 mod tests {
     use std::collections::{HashMap, HashSet};
 
-    use tracker_core::anime::{Status, Titles};
-    use tracker_core::feed::{
+    use patchouli_core::anime::{Status, Titles};
+    use patchouli_core::feed::{
         Action, Condition, DiscardOption, Element, Match, Operator, default_filters,
     };
-    use tracker_core::{Anime, ListEntry, ListStatus};
-    use tracker_recognition::Relations;
+    use patchouli_core::{Anime, ListEntry, ListStatus};
+    use patchouli_recognition::Relations;
 
     use super::*;
 

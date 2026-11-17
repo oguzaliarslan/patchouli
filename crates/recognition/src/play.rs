@@ -1,6 +1,6 @@
 //! Which episode to play (Taiga `track/play.cpp`).
 
-use tracker_core::{Anime, ListEntry, ListStatus};
+use patchouli_core::{Anime, ListEntry, ListStatus};
 
 /// The episode after the last watched one; episode 1 again once completed.
 pub fn next_episode(anime: &Anime, entry: Option<&ListEntry>) -> i32 {

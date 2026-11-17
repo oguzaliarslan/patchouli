@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
+use patchouli_core::{Fields, ListEntry, ListStatus, ServiceId};
+use patchouli_sync::myanimelist::{Endpoints, MyAnimeList};
+use patchouli_sync::oauth::exchange_code;
+use patchouli_sync::{CredentialStore, Credentials, MemoryCredentialStore};
 use serde_json::json;
-use tracker_core::{Fields, ListEntry, ListStatus, ServiceId};
-use tracker_sync::myanimelist::{Endpoints, MyAnimeList};
-use tracker_sync::oauth::exchange_code;
-use tracker_sync::{CredentialStore, Credentials, MemoryCredentialStore};
 use wiremock::matchers::{body_string_contains, header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

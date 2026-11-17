@@ -3,10 +3,10 @@
 
 use std::path::PathBuf;
 
+use patchouli_core::anime::{Status, Type};
+use patchouli_core::{Fields, FuzzyDate, ListStatus};
+use patchouli_db::{anime, anime_settings, history, list, meta, migrations, queue};
 use rusqlite::Connection;
-use tracker_core::anime::{Status, Type};
-use tracker_core::{Fields, FuzzyDate, ListStatus};
-use tracker_db::{anime, anime_settings, history, list, meta, migrations, queue};
 
 const TAIGA_SCHEMA: &[&str] = &[
     include_str!("../sql/createMeta.sql"),
@@ -68,7 +68,7 @@ impl TempDb {
     fn new(name: &str) -> Self {
         let dir = std::env::temp_dir().join(format!("tracker-{name}-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join(tracker_db::FILE_NAME);
+        let path = dir.join(patchouli_db::FILE_NAME);
         let _ = std::fs::remove_file(&path);
         Self(path)
     }
@@ -97,7 +97,7 @@ fn opens_and_migrates_a_taiga_database() {
     let db = TempDb::new("taiga-v2");
     write_taiga_db(&db.0);
 
-    let conn = tracker_db::open(&db.0).unwrap();
+    let conn = patchouli_db::open(&db.0).unwrap();
     assert_eq!(
         migrations::version(&conn).unwrap(),
         migrations::SCHEMA_VERSION
@@ -187,8 +187,8 @@ fn opens_and_migrates_a_taiga_database() {
 fn reopening_a_migrated_database_is_a_no_op() {
     let db = TempDb::new("taiga-v2-reopen");
     write_taiga_db(&db.0);
-    drop(tracker_db::open(&db.0).unwrap());
-    let conn = tracker_db::open(&db.0).unwrap();
+    drop(patchouli_db::open(&db.0).unwrap());
+    let conn = patchouli_db::open(&db.0).unwrap();
     assert_eq!(list::all(&conn).unwrap().len(), 2);
     assert_eq!(anime::count(&conn).unwrap(), 3);
 }

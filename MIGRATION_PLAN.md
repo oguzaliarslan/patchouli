@@ -114,7 +114,7 @@ poll (3s) ─► anisthesia: enumerate windows → match player → strategy
 ### Cargo workspace layout
 
 ```
-tracker-app/
+patchouli/
 ├─ Cargo.toml                  # workspace
 ├─ crates/
 │  ├─ core/                    # domain: Anime, ListEntry, Status, Type, FuzzyDate, Fields bitflags, Season
@@ -183,7 +183,7 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 - **Exit:** repository round-trip tests pass, and a sample DB loads (`crates/db/tests/taiga_v2.rs` builds a database the way Taiga writes it)
 
 ### Phase 2: Sync services (3–4 weeks), AniList and MyAnimeList ✅
-- [x] Service client (`tracker_sync::Client`, an enum rather than a trait object since the methods are async): user, fetch_anime, search, fetch_list, save/delete entry, anime_page_url
+- [x] Service client (`patchouli_sync::Client`, an enum rather than a trait object since the methods are async): user, fetch_anime, search, fetch_list, save/delete entry, anime_page_url
 - [x] **AniList**: GraphQL with the existing `.gql` files, error mapping, duplicate entries from custom lists skipped. Rating-system display (`anilist_ratings`) is left to the phase 3 UI; scores are stored 0–100 and the account's score format is saved
 - [x] **MyAnimeList**: REST v2, PKCE, refresh-on-401 (refreshed tokens saved), paged list fetch with pruning
 - [ ] **Kitsu**: deferred
@@ -237,7 +237,7 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 - [x] Webhook: Taiga's v1 event schema (playing/stopped/updated, custom headers), 1.5 s debounce, private entries never shared. Verified end to end against a local listener
 - [x] List export (`anime_list_export`): Markdown and MyAnimeList XML
 - [ ] i18n: **not needed yet**. Taiga's `resources/translations` holds only English plural forms, so there's nothing to convert. Revisit when there are translators
-- [x] Logging to `<data>/logs/tracker_<date>.log`, plus `--debug`/`--verbose` CLI flags
+- [x] Logging to `<data>/logs/patchouli_<date>.log`, plus `--debug`/`--verbose` CLI flags
 
 ### Phase 7: Data migration from Taiga (1 week) ✅
 - [x] Import from a Taiga **v2** data folder (`crates/compat/src/v2.rs`): `media.sqlite` opened read-only and not migrated, `settings.json` merged key by key (unknown keys and wrong types skipped), username from `accounts.json`. Taiga v2 uses JSON, not INI
@@ -245,12 +245,14 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 - [x] Login tokens are never imported (they belong to Taiga's application); the user logs in again
 - [x] First-run prompt on Home when Taiga data is found in the default locations and the local list is empty ("Import" / "Not now", remembered in `meta.taiga_import`), plus Settings › Advanced › Import from Taiga with a folder picker (portable Taiga folders too). Importing over a local list asks first; the import is one savepoint
 
-### Phase 8: Release (1–2 weeks)
-- [ ] Code signing (Windows Authenticode), NSIS/MSI installer + portable zip
-- [ ] `tauri-plugin-updater` with signed update manifests
-- [ ] Remote refresh of `anime-relations.txt` and `players.anisthesia` (Taiga has this in v1 `taiga/update.cpp`)
-- [ ] Crash/panic reporting (local log, opt-in upload)
-- [ ] Beta with power users, compare recognition accuracy against Taiga
+### Phase 8: Release
+- [x] Windows release script for NSIS, MSI and portable ZIP, with optional Authenticode signing
+- [x] Tauri updater and Settings controls with version-bound installer signatures and a GitHub Releases manifest
+- [x] Daily refresh of episode relations and player definitions from upstream
+- [x] Local panic reports. Uploads are deferred until a reporting destination is chosen
+- [x] Recognition report export for beta comparisons
+- [ ] Verify Authenticode with a release certificate and install a signed update from a published release
+- [ ] Run the beta with power users and compare recognition against Taiga
 
 ### Phase 9: v1 feature parity and cross-platform ✅ (done before phase 8)
 - [x] Torrents (`crates/feed`, port of v1 `track/feed*`): RSS 2.0 with each site's quirks (Tokyo Toshokan, Nyaa, AnimeTosho, AniDex, ACG.RIP/acgnx, SubsPlease, AnimeBytes, Minglong, NyaaPantsu), recognition and categories, Taiga's filter engine (conditions, `%watched%`-style variables, select/discard/prefer with strong and weak preferences), its 10 presets and 6 default filters, the download archive, downloads with `.torrent` validation or magnet links, BitTorrent client arguments (aria2, Deluge, PicoTorrent, qBittorrent, Transmission, µTorrent), automatic checks with notify or download. Filters are stored in `settings.json` (`torrents.filters`, Taiga's shortcodes); v1 `settings.xml` torrent settings and filters are imported. Checked against live Tokyo Toshokan and Nyaa feeds

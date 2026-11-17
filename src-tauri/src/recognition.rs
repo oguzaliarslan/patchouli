@@ -5,13 +5,13 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use patchouli_core::{Anime, ServiceId};
+use patchouli_db::{anime, anime_settings, list};
+use patchouli_recognition::scanner::{self, LibraryScan};
+use patchouli_recognition::{Episode, Identification, Recognizer, Relations, play};
 use serde::Serialize;
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
-use tracker_core::{Anime, ServiceId};
-use tracker_db::{anime, anime_settings, list};
-use tracker_recognition::scanner::{self, LibraryScan};
-use tracker_recognition::{Episode, Identification, Recognizer, Relations, play};
 
 use crate::AppState;
 use crate::error::{CommandError, CommandResult};
@@ -44,14 +44,21 @@ impl RecognitionCache {
     fn relations(&self, service: ServiceId) -> Relations {
         let candidates = [
             Some(self.data_dir.join(RELATIONS_FILE)),
+            Some(
+                self.data_dir
+                    .join(crate::resources::CACHE)
+                    .join(RELATIONS_FILE),
+            ),
             self.resource_dir.as_ref().map(|d| d.join(RELATIONS_FILE)),
         ];
         candidates
             .into_iter()
             .flatten()
             .find_map(|path| std::fs::read_to_string(path).ok())
-            .map(|text| Relations::parse(&text, service))
-            .unwrap_or_default()
+            .map_or_else(
+                || Relations::parse(include_str!("../resources/anime-relations.txt"), service),
+                |text| Relations::parse(&text, service),
+            )
     }
 
     pub fn get(&self, state: &AppState) -> CommandResult<Arc<Recognizer>> {
@@ -78,7 +85,7 @@ fn library_folders(state: &AppState) -> Vec<String> {
 #[serde(rename_all = "camelCase")]
 pub struct RecognitionTest {
     /// Elements Anitomy found in the input, before redirection.
-    elements: Vec<tracker_anitomy::Element>,
+    elements: Vec<patchouli_anitomy::Element>,
     /// The title came from parent folders.
     title_from_path: bool,
     identification: Identification,
@@ -96,7 +103,7 @@ pub fn recognition_test(
     let input = input.trim().trim_matches('"');
     let is_path = input.contains(['/', '\\']);
     let episode = if is_path {
-        tracker_recognition::parse_file(Path::new(input), &library_folders(&state))
+        patchouli_recognition::parse_file(Path::new(input), &library_folders(&state))
     } else {
         Episode::parse(input)
     };

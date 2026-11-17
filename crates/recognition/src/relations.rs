@@ -9,8 +9,8 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+use patchouli_core::ServiceId;
 use regex::Regex;
-use tracker_core::ServiceId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct Redirection {

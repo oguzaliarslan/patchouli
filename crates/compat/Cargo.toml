@@ -1,5 +1,5 @@
 [package]
-name = "tracker-compat"
+name = "patchouli-compat"
 description = "Importers for Taiga v1 (XML) and v2 (SQLite/JSON) data"
 version.workspace = true
 edition.workspace = true
@@ -7,8 +7,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-tracker-core.workspace = true
-tracker-db.workspace = true
+patchouli-core.workspace = true
+patchouli-db.workspace = true
 rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -1,9 +1,9 @@
 //! Whether watching an episode should update the list
 //! (Taiga `track/update_decision.cpp`).
 
+use patchouli_core::{Anime, ListEntry, ListStatus};
+use patchouli_recognition::Episode;
 use serde::{Deserialize, Serialize};
-use tracker_core::{Anime, ListEntry, ListStatus};
-use tracker_recognition::Episode;
 
 use crate::is_in_list;
 

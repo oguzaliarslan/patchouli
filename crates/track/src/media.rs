@@ -2,8 +2,8 @@
 
 use std::path::Path;
 
-use tracker_detect::{Detection, MediaInfoKind};
-use tracker_recognition::{Episode, parse_file};
+use patchouli_detect::{Detection, MediaInfoKind};
+use patchouli_recognition::{Episode, parse_file};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedMedia {
@@ -56,8 +56,8 @@ pub fn pick(detections: &[Detection], previous_window: Option<isize>) -> Option<
 
 #[cfg(test)]
 mod tests {
-    use tracker_anitomy::ElementKind;
-    use tracker_detect::{MediaInfo, PlayerType};
+    use patchouli_anitomy::ElementKind;
+    use patchouli_detect::{MediaInfo, PlayerType};
 
     use super::*;
 

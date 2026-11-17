@@ -14,7 +14,7 @@ pub mod decision;
 pub mod media;
 pub mod session;
 
-use tracker_core::{Anime, FuzzyDate, ListEntry, ListStatus};
+use patchouli_core::{Anime, FuzzyDate, ListEntry, ListStatus};
 
 pub use decision::{Action, Reason, UpdateDecision, decide_update, watched_episode_number};
 pub use session::{Effect, Phase, UpdateSession, UpdateSettings, UpdateState, UpdateTrigger};

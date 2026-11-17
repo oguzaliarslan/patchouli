@@ -32,7 +32,7 @@ import { Poster } from "./Poster";
 
 type Tab = "details" | "entry" | "settings";
 
-/** Taiga's media dialog: details, list entry editor and per-anime settings. */
+/** Anime details, list entry editor and per-anime settings. */
 export function AnimeDialog({
   animeId,
   initialTab,

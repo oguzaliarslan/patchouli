@@ -5,25 +5,27 @@ mod library;
 mod logging;
 mod paths;
 mod recognition;
+mod resources;
 mod sharing;
 mod stats;
 mod sync;
 mod taiga;
 mod torrents;
 mod tracking;
+mod update;
 mod window;
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use patchouli_db::{anime, history, list, meta, migrations, queue};
+use patchouli_settings::{Settings, SettingsStore};
+use patchouli_sync::oauth::OAuthConfig;
+use patchouli_sync::{AccountsFile, Synchronizer};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_window_state::StateFlags;
-use tracker_db::{anime, history, list, meta, migrations, queue};
-use tracker_settings::{Settings, SettingsStore};
-use tracker_sync::oauth::OAuthConfig;
-use tracker_sync::{AccountsFile, Synchronizer};
 
 use crate::credentials::KeyringStore;
 use crate::error::CommandResult;
@@ -38,7 +40,7 @@ const SETTINGS_CHANGED: &str = "settings-changed";
 pub(crate) struct AppState {
     data_dir: PathBuf,
     portable: bool,
-    db: Arc<Mutex<tracker_db::Connection>>,
+    db: Arc<Mutex<patchouli_db::Connection>>,
     settings: Arc<SettingsStore>,
     accounts: AccountsFile,
     credentials: Arc<KeyringStore>,
@@ -48,6 +50,7 @@ pub(crate) struct AppState {
     tracker: Tracker,
     sharing: Sharing,
     torrents: torrents::Torrents,
+    updates: update::Updates,
     /// Held while a login is in progress.
     login: tokio::sync::Mutex<()>,
 }
@@ -104,7 +107,7 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         app.path().resource_dir().ok().map(|d| d.join("resources")),
     ));
 
-    let settings = SettingsStore::load(data_dir.path.join(tracker_settings::FILE_NAME))?;
+    let settings = SettingsStore::load(data_dir.path.join(patchouli_settings::FILE_NAME))?;
     settings.update(|s| s.meta_version = version.clone())?;
     let handle = app.clone();
     let cache = Arc::clone(&recognition);
@@ -132,37 +135,28 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         let _ = handle.emit(SETTINGS_CHANGED, keys);
     });
 
-    let players = app
-        .path()
-        .resolve(
-            "resources/players.anisthesia",
-            tauri::path::BaseDirectory::Resource,
-        )
-        .ok()
-        .and_then(|path| std::fs::read_to_string(path).ok())
-        .and_then(|text| tracker_detect::parse_players(&text).ok())
-        .unwrap_or_default();
+    let players = resources::players(&data_dir.path);
     let tracker = Tracker::new(players, &settings.get());
     let (sharing, discord) = Sharing::new();
     if let Some(discord) = discord {
         tauri::async_runtime::spawn(discord);
     }
 
-    let db = tracker_db::open(data_dir.path.join(tracker_db::FILE_NAME))?;
+    let db = patchouli_db::open(data_dir.path.join(patchouli_db::FILE_NAME))?;
     meta::set(&db, "version", &version)?;
     let db = Arc::new(Mutex::new(db));
 
     let handle = app.clone();
     let cache = Arc::clone(&recognition);
     let sync = Synchronizer::new(Arc::clone(&db), move |event| {
-        if event == tracker_sync::SyncEvent::ListChanged {
+        if event == patchouli_sync::SyncEvent::ListChanged {
             cache.invalidate();
             sharing::schedule_update(&handle);
             if handle.try_state::<AppState>().is_some() {
                 torrents::refilter(&handle);
             }
         }
-        if let tracker_sync::SyncEvent::Error { message, .. } = &event {
+        if let patchouli_sync::SyncEvent::Error { message, .. } = &event {
             log::warn!("Sync: {message}");
         }
         let _ = handle.emit(sync::SYNC_EVENT, event);
@@ -170,7 +164,7 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
 
     let torrents = torrents::Torrents::new(&data_dir.path);
     Ok(AppState {
-        accounts: AccountsFile::load(data_dir.path.join(tracker_sync::accounts::FILE_NAME)),
+        accounts: AccountsFile::load(data_dir.path.join(patchouli_sync::accounts::FILE_NAME)),
         credentials: Arc::new(KeyringStore::new(app.config().identifier.clone())),
         oauth: OAuthConfig::from_env(),
         data_dir: data_dir.path,
@@ -182,6 +176,7 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         tracker,
         sharing,
         torrents,
+        updates: update::Updates::default(),
         login: tokio::sync::Mutex::new(()),
     })
 }
@@ -207,6 +202,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         // Visibility is decided by "start in tray", not restored.
         .plugin(
             tauri_plugin_window_state::Builder::default()
@@ -214,6 +210,7 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            logging::install_panic_hook(paths::data_dir(app.handle())?.path.join("logs"));
             logging::init(app.handle())?;
             let state = init_state(app.handle())?;
             start_sync(app.handle(), &state);
@@ -222,6 +219,8 @@ pub fn run() {
             app.manage(state);
             tracking::start(app.handle());
             torrents::start(app.handle());
+            update::start(app.handle());
+            resources::start(app.handle());
             Ok(())
         })
         .on_window_event(window::on_window_event)
@@ -270,6 +269,9 @@ pub fn run() {
             torrents::torrents_archive_info,
             torrents::torrents_archive_clear,
             torrents::torrents_download,
+            update::update_status,
+            update::update_check,
+            update::update_install,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

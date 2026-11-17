@@ -7,10 +7,10 @@
 //! depending on settings and on [`decide_update`]. It doesn't save anything
 //! itself: it returns [`Effect`]s for the caller to carry out.
 
+use patchouli_anitomy::ElementKind;
+use patchouli_core::{Anime, ListEntry};
+use patchouli_recognition::Episode;
 use serde::{Deserialize, Serialize};
-use tracker_anitomy::ElementKind;
-use tracker_core::{Anime, ListEntry};
-use tracker_recognition::Episode;
 
 use crate::decision::{Action, Reason, decide_update, watched_episode_number};
 use crate::is_in_list;
@@ -375,7 +375,7 @@ mod tests {
     use std::cell::RefCell;
     use std::collections::HashMap;
 
-    use tracker_core::ListStatus;
+    use patchouli_core::ListStatus;
 
     use super::*;
 

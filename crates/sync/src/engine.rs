@@ -12,10 +12,10 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::time::Duration;
 
+use patchouli_core::{Fields, ListEntry, QueueItem};
+use patchouli_db::{Connection, anime, history, list, queue};
 use serde::Serialize;
 use tokio::sync::Notify;
-use tracker_core::{Fields, ListEntry, QueueItem};
-use tracker_db::{Connection, anime, history, list, queue};
 
 use crate::accounts::Account;
 use crate::client::{Client, SavedEntry};
@@ -401,14 +401,14 @@ fn reconcile(
 
 #[cfg(test)]
 mod tests {
-    use tracker_core::{FuzzyDate, ListStatus};
+    use patchouli_core::{FuzzyDate, ListStatus};
 
     use super::*;
 
     fn synchronizer() -> (Synchronizer, Arc<Mutex<Vec<SyncEvent>>>) {
         let events = Arc::new(Mutex::new(Vec::new()));
         let sink = Arc::clone(&events);
-        let db = Arc::new(Mutex::new(tracker_db::open_in_memory().unwrap()));
+        let db = Arc::new(Mutex::new(patchouli_db::open_in_memory().unwrap()));
         let sync = Synchronizer::new(db, move |e| sink.lock().unwrap().push(e));
         (sync, events)
     }

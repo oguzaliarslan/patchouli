@@ -2,13 +2,13 @@
 
 use std::collections::HashMap;
 
+use patchouli_core::{Anime, AnimeSettings, HistoryItem, ListEntry, QueueItem};
+use patchouli_db::{anime, anime_settings, history, list, queue};
 use serde::Serialize;
-use tauri::{AppHandle, Manager, State};
-use tracker_core::{Anime, AnimeSettings, HistoryItem, ListEntry, QueueItem};
-use tracker_db::{anime, anime_settings, history, list, queue};
+use tauri::State;
 
 use crate::AppState;
-use crate::error::{CommandError, CommandResult};
+use crate::error::CommandResult;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,7 +29,7 @@ fn details(state: &AppState, id: i32) -> CommandResult<AnimeDetails> {
         entry: list::get(&db, id)?.filter(|e| !e.pending_delete),
         settings: anime_settings::get(&db, id)?,
         queued: queue::get(&db, id)?,
-        page_url: tracker_sync::anime_page_url(service, id).ok(),
+        page_url: patchouli_sync::anime_page_url(service, id).ok(),
     })
 }
 
@@ -45,7 +45,7 @@ pub async fn anime_refresh(state: State<'_, AppState>, id: i32) -> CommandResult
     let (client, _) = state
         .sync
         .session()
-        .ok_or(tracker_sync::Error::NotLoggedIn)?;
+        .ok_or(patchouli_sync::Error::NotLoggedIn)?;
     let fetched = client.fetch_anime(id).await?;
     {
         let db = state.db.lock()?;
@@ -124,7 +124,7 @@ pub fn history_clear(state: State<'_, AppState>) -> CommandResult<()> {
 }
 
 /// Custom display titles set in per-anime settings.
-pub fn display_titles(db: &tracker_db::Connection) -> tracker_db::Result<HashMap<i32, String>> {
+pub fn display_titles(db: &patchouli_db::Connection) -> patchouli_db::Result<HashMap<i32, String>> {
     Ok(anime_settings::all(db)?
         .into_iter()
         .filter(|s| !s.display_title.is_empty())
@@ -134,16 +134,17 @@ pub fn display_titles(db: &tracker_db::Connection) -> tracker_db::Result<HashMap
 
 /// Names of the media players in `players.anisthesia`, sorted.
 #[tauri::command]
-pub fn players_get(app: AppHandle) -> CommandResult<Vec<String>> {
-    let path = app.path().resolve(
-        "resources/players.anisthesia",
-        tauri::path::BaseDirectory::Resource,
-    )?;
-    let text = std::fs::read_to_string(&path)
-        .map_err(|e| CommandError::new(format!("Couldn't read the player list: {e}")))?;
-    Ok(player_names(&text))
+pub fn players_get(state: State<'_, AppState>) -> Vec<String> {
+    let mut names: Vec<_> = crate::resources::players(&state.data_dir)
+        .into_iter()
+        .map(|player| player.name)
+        .collect();
+    names.sort_by_key(|name| name.to_lowercase());
+    names.dedup();
+    names
 }
 
+#[cfg(test)]
 /// Player names are the unindented, non-comment lines.
 fn player_names(text: &str) -> Vec<String> {
     let mut names: Vec<String> = text

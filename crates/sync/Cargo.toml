@@ -1,5 +1,5 @@
 [package]
-name = "tracker-sync"
+name = "patchouli-sync"
 description = "AniList and MyAnimeList clients, login and the offline update queue"
 version.workspace = true
 edition.workspace = true
@@ -7,8 +7,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-tracker-core.workspace = true
-tracker-db.workspace = true
+patchouli-core.workspace = true
+patchouli-db.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 reqwest.workspace = true
