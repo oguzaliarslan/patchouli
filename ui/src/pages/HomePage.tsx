@@ -1,3 +1,4 @@
+import { NowPlayingCard } from "../components/NowPlaying";
 import { Poster } from "../components/Poster";
 import { useApp } from "../lib/context";
 import { episodesText, itemTitle, progressRatio, relativeTime } from "../lib/format";
@@ -28,16 +29,7 @@ export function HomePage({ sync }: { sync: SyncState }) {
         </div>
       </header>
 
-      <section className="now-playing" aria-label="Now playing">
-        <div className="now-playing-icon">▶</div>
-        <div>
-          <strong>Nothing is playing</strong>
-          <p className="muted">
-            Episodes playing in your media player will appear here once detection is added
-            (phase 5).
-          </p>
-        </div>
-      </section>
+      <NowPlayingCard />
 
       {!account?.username && (
         <section className="callout">

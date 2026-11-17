@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { api, errorMessage, type ListEntry, type Settings } from "../api";
+import { api, errorMessage, type ListEntry, type Settings, type TrackingState } from "../api";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,7 +22,31 @@ export const keys = {
   info: ["info"] as const,
   anime: (id: number) => ["anime", id] as const,
   players: ["players"] as const,
+  tracking: ["tracking"] as const,
 };
+
+/** What's playing and the update state, kept current by backend events. */
+export function useTracking() {
+  const client = useQueryClient();
+  const query = useQuery({ queryKey: keys.tracking, queryFn: api.tracking });
+  useEffect(() => {
+    const nowPlaying = api.onNowPlaying((playing) =>
+      client.setQueryData<TrackingState>(keys.tracking, (old) =>
+        old ? { ...old, nowPlaying: playing } : old,
+      ),
+    );
+    const update = api.onUpdateState((state) =>
+      client.setQueryData<TrackingState>(keys.tracking, (old) =>
+        old ? { ...old, update: state } : old,
+      ),
+    );
+    return () => {
+      void nowPlaying.then((f) => f());
+      void update.then((f) => f());
+    };
+  }, [client]);
+  return query;
+}
 
 /** Data that changes when the list or queue changes. */
 function invalidateListData() {

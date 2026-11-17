@@ -18,6 +18,8 @@ tracker-settings = { path = "crates/settings" }
 tracker-sync = { path = "crates/sync" }
 tracker-anitomy = { path = "crates/anitomy" }
 tracker-recognition = { path = "crates/recognition" }
+tracker-detect = { path = "crates/detect" }
+tracker-track = { path = "crates/track" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -28,6 +30,18 @@ unicode-normalization = "0.1"
 unicode-general-category = "1"
 caseless = "0.2"
 walkdir = "2"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Win32_System_Ole",
+  "Win32_System_Threading",
+  "Win32_System_Variant",
+  "Win32_UI_Accessibility",
+  "Win32_UI_WindowsAndMessaging",
+] }
 # native-tls (Schannel on Windows) instead of the default rustls/aws-lc stack,
 # which needs extra build tools on Windows.
 reqwest = { version = "0.13", default-features = false, features = [

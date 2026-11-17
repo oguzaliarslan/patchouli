@@ -345,7 +345,6 @@ function RecognitionSection({ settings, change }: SectionProps) {
         checked={settings["track.update.libraryOnly"]}
         onChange={(v) => change("track.update.libraryOnly", v)}
       />
-      <p className="muted small">Player detection arrives in phase 5; these settings are saved now.</p>
 
       <h3>Test a file name</h3>
       <RecognitionTester />

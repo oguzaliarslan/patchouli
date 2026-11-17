@@ -1,27 +1,79 @@
-//! Detects media players and what they are playing.
+//! Detects running media players and what they are playing.
 //!
-//! Phase 5: parse `players.anisthesia` and implement the Windows strategies
-//! (window title, open files, UI Automation) behind [`MediaDetector`].
+//! Ported from [erengy/anisthesia] (MIT). Windows only for now: windows are
+//! enumerated, matched against the player list (`players.anisthesia`), and
+//! each player's strategies read what's playing:
+//!
+//! - `window_title`: the window title, through the player's title format
+//! - `open_files`: files the player process has open
+//! - `ui_automation`: a browser's address bar, tabs and title
+//!
+//! On other platforms [`detect`] returns nothing.
+//!
+//! [erengy/anisthesia]: https://github.com/erengy/anisthesia
 
-/// A media file or stream that a player is currently showing.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DetectedMedia {
+pub mod matching;
+pub mod players;
+#[cfg(windows)]
+mod win;
+
+use serde::Serialize;
+
+pub use players::{ParseError, Player, PlayerType, Strategy, parse_players};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MediaInfoKind {
+    /// A window title that isn't a path.
+    Unknown,
+    File,
+    Tab,
+    Title,
+    Url,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct MediaInfo {
+    pub kind: MediaInfoKind,
+    pub value: String,
+}
+
+/// A player window and what its strategies found.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Detection {
     pub player: String,
-    /// File path, window title or page title, depending on the strategy that matched.
-    pub information: String,
-    pub focused: bool,
+    pub player_type: PlayerType,
+    /// Window handle, to recognise the same window between polls.
+    pub window: isize,
+    pub window_title: String,
+    pub process_id: u32,
+    pub process_name: String,
+    pub media: Vec<MediaInfo>,
 }
 
-pub trait MediaDetector: Send {
-    fn poll(&mut self) -> Vec<DetectedMedia>;
-}
-
-/// Detector for platforms without an implementation yet.
-#[derive(Debug, Default)]
-pub struct NullDetector;
-
-impl MediaDetector for NullDetector {
-    fn poll(&mut self) -> Vec<DetectedMedia> {
+/// Player windows, top-most first, with what each is playing. Windows whose
+/// strategies found nothing are left out.
+pub fn detect(players: &[Player]) -> Vec<Detection> {
+    #[cfg(windows)]
+    {
+        win::detect(players)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = players;
         Vec::new()
+    }
+}
+
+/// The window that has the keyboard focus.
+pub fn foreground_window() -> Option<isize> {
+    #[cfg(windows)]
+    {
+        win::foreground_window()
+    }
+    #[cfg(not(windows))]
+    {
+        None
     }
 }

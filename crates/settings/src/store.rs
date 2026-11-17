@@ -56,17 +56,21 @@ pub struct SettingsStore {
 impl SettingsStore {
     /// Loads settings from `path`, or creates the file with defaults.
     ///
-    /// A file that isn't valid JSON is renamed to `<name>.corrupt` and replaced
-    /// with defaults, so a damaged file doesn't stop the app from starting.
+    /// Values of the wrong type are dropped one by one, like Taiga, which reads
+    /// each key separately. A file that isn't a JSON object at all is renamed
+    /// to `<name>.corrupt` and replaced with defaults, so a damaged file
+    /// doesn't stop the app from starting.
     pub fn load(path: impl Into<PathBuf>) -> Result<Self, Error> {
         let path = path.into();
         let settings = match std::fs::read(&path) {
-            Ok(bytes) => match serde_json::from_slice::<Settings>(&bytes) {
-                Ok(mut settings) => {
+            // Windows editors (and PowerShell) may add a UTF-8 byte order mark.
+            Ok(bytes) => match parse_lenient(bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&bytes))
+            {
+                Some(mut settings) => {
                     settings.normalize();
                     settings
                 }
-                Err(_) => {
+                None => {
                     std::fs::rename(&path, corrupt_path(&path))?;
                     Settings::default()
                 }
@@ -148,6 +152,28 @@ impl SettingsStore {
         std::fs::rename(&tmp, &self.path)?;
         Ok(())
     }
+}
+
+/// Parses a settings object, skipping keys whose values have the wrong type.
+/// `None` if it isn't a JSON object.
+fn parse_lenient(bytes: &[u8]) -> Option<Settings> {
+    let Value::Object(file) = serde_json::from_slice::<Value>(bytes).ok()? else {
+        return None;
+    };
+    if let Ok(settings) = serde_json::from_value::<Settings>(Value::Object(file.clone())) {
+        return Some(settings);
+    }
+    let Value::Object(mut accepted) = serde_json::to_value(Settings::default()).ok()? else {
+        return None;
+    };
+    for (key, value) in file {
+        let mut candidate = accepted.clone();
+        candidate.insert(key.clone(), value.clone());
+        if serde_json::from_value::<Settings>(Value::Object(candidate)).is_ok() {
+            accepted.insert(key, value);
+        }
+    }
+    serde_json::from_value(Value::Object(accepted)).ok()
 }
 
 fn corrupt_path(path: &Path) -> PathBuf {
@@ -254,6 +280,33 @@ mod tests {
         assert_eq!(saved["app.style"], "fusion");
         assert_eq!(saved["sync.service"], "kitsu");
         assert_eq!(saved["sharing.discord.enabled"], true);
+    }
+
+    #[test]
+    fn accepts_byte_order_mark() {
+        let dir = TempDir::new("bom");
+        let path = dir.0.join(FILE_NAME);
+        std::fs::write(&path, b"\xEF\xBB\xBF{\"track.update.delay\": 30}").unwrap();
+        let store = SettingsStore::load(&path).unwrap();
+        assert_eq!(store.get().update_delay_secs, 30);
+        assert!(!dir.0.join("settings.json.corrupt").exists());
+    }
+
+    #[test]
+    fn drops_only_values_of_the_wrong_type() {
+        let dir = TempDir::new("lenient");
+        let path = dir.0.join(FILE_NAME);
+        std::fs::write(
+            &path,
+            r#"{"track.update.delay": 30, "track.detection.disabledPlayers": [{"x": 1}], "app.style": "fusion"}"#,
+        )
+        .unwrap();
+        let store = SettingsStore::load(&path).unwrap();
+        let settings = store.get();
+        assert_eq!(settings.update_delay_secs, 30);
+        assert!(settings.disabled_players.is_empty());
+        assert_eq!(settings.extra["app.style"], "fusion");
+        assert!(!dir.0.join("settings.json.corrupt").exists());
     }
 
     #[test]

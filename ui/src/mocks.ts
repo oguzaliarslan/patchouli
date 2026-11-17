@@ -289,6 +289,43 @@ export function installMocks() {
           return null;
         case "players_get":
           return PLAYERS;
+        case "tracking_get": {
+          const watching = [...entries.values()].find((e) => e.status === "Watching")!;
+          const next = watching.watchedEpisodes + 3; // skips ahead, to show the prompt
+          return {
+            nowPlaying: {
+              player: "mpv",
+              browser: false,
+              file: `D:\\Anime\\${catalog.get(watching.animeId)!.titles.romaji} - ${pad(next)}.mkv`,
+              title: catalog.get(watching.animeId)!.titles.romaji,
+              episodes: [pad(next)],
+              animeId: watching.animeId,
+              elements: [],
+            },
+            update: {
+              phase: "confirming",
+              reason: "skipsAhead",
+              remainingSecs: 0,
+              animeId: watching.animeId,
+              episode: next,
+              previousEpisode: watching.watchedEpisodes,
+              paused: false,
+            },
+          };
+        }
+        case "update_accept":
+        case "update_cancel": {
+          const watching = [...entries.values()].find((e) => e.status === "Watching")!;
+          return {
+            phase: cmd === "update_accept" ? "committed" : "cancelled",
+            reason: "none",
+            remainingSecs: 0,
+            animeId: watching.animeId,
+            episode: watching.watchedEpisodes + 3,
+            previousEpisode: watching.watchedEpisodes,
+            paused: false,
+          };
+        }
         case "recognition_test": {
           // Rough stand-in for the real parser: `[Group] Title - 01 [Info].ext`.
           const input = String(a.input).split(/[\\/]/).pop() ?? "";

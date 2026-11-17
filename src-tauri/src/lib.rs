@@ -4,6 +4,7 @@ mod library;
 mod paths;
 mod recognition;
 mod sync;
+mod tracking;
 mod window;
 
 use std::collections::BTreeSet;
@@ -21,6 +22,7 @@ use tracker_sync::{AccountsFile, Synchronizer};
 use crate::credentials::KeyringStore;
 use crate::error::CommandResult;
 use crate::recognition::RecognitionCache;
+use crate::tracking::Tracker;
 
 /// Event emitted with the changed setting keys (`string[]`).
 const SETTINGS_CHANGED: &str = "settings-changed";
@@ -36,6 +38,7 @@ pub(crate) struct AppState {
     oauth: OAuthConfig,
     sync: Arc<Synchronizer>,
     recognition: Arc<RecognitionCache>,
+    tracker: Tracker,
     /// Held while a login is in progress.
     login: tokio::sync::Mutex<()>,
 }
@@ -96,13 +99,30 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
     settings.update(|s| s.meta_version = version.clone())?;
     let handle = app.clone();
     let cache = Arc::clone(&recognition);
-    settings.subscribe(move |_, keys| {
+    settings.subscribe(move |new, keys| {
         // Relation rules depend on the service's IDs.
         if keys.contains("sync.service") {
             cache.invalidate();
         }
+        if keys.iter().any(|k| k.starts_with("track.update."))
+            && handle.try_state::<AppState>().is_some()
+        {
+            tracking::settings_changed(&handle, new);
+        }
         let _ = handle.emit(SETTINGS_CHANGED, keys);
     });
+
+    let players = app
+        .path()
+        .resolve(
+            "resources/players.anisthesia",
+            tauri::path::BaseDirectory::Resource,
+        )
+        .ok()
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .and_then(|text| tracker_detect::parse_players(&text).ok())
+        .unwrap_or_default();
+    let tracker = Tracker::new(players, &settings.get());
 
     let db = tracker_db::open(data_dir.path.join(tracker_db::FILE_NAME))?;
     meta::set(&db, "version", &version)?;
@@ -127,6 +147,7 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         settings: Arc::new(settings),
         sync: Arc::new(sync),
         recognition,
+        tracker,
         login: tokio::sync::Mutex::new(()),
     })
 }
@@ -151,6 +172,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         // Visibility is decided by "start in tray", not restored.
         .plugin(
             tauri_plugin_window_state::Builder::default()
@@ -163,6 +185,7 @@ pub fn run() {
             window::create_tray(app.handle())?;
             window::show_on_start(app.handle(), &state);
             app.manage(state);
+            tracking::start(app.handle());
             Ok(())
         })
         .on_window_event(window::on_window_event)
@@ -190,6 +213,9 @@ pub fn run() {
             recognition::anime_play,
             recognition::anime_open_folder,
             recognition::library_scan,
+            tracking::tracking_get,
+            tracking::update_accept,
+            tracking::update_cancel,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

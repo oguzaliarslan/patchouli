@@ -4,7 +4,7 @@ import { ContextMenu, type MenuState } from "./components/ContextMenu";
 import { Icon, type IconName } from "./components/Icon";
 import { AppContext, type AppActions, type Page } from "./lib/context";
 import { usePref } from "./lib/prefs";
-import { useBackendEvents, useCurrentAccount, useQueue, useSettings } from "./lib/queries";
+import { useBackendEvents, useCurrentAccount, useQueue, useSettings, useTracking } from "./lib/queries";
 import { useColorScheme } from "./lib/theme";
 import { HistoryPage } from "./pages/HistoryPage";
 import { HomePage } from "./pages/HomePage";
@@ -104,6 +104,33 @@ export default function App() {
   );
 }
 
+function DetectionStatus() {
+  const { data: settings } = useSettings();
+  const { data: tracking } = useTracking();
+  if (!(settings?.["track.detection.enabled"] ?? true)) {
+    return <span className="muted">Detection: off</span>;
+  }
+  const playing = tracking?.nowPlaying;
+  const update = tracking?.update;
+  if (!playing) return <span className="muted">Detection: on</span>;
+  const episode = playing.episodes.length ? ` #${playing.episodes.join("–")}` : "";
+  const suffix =
+    update?.phase === "countdown"
+      ? ` · updating in ${update.remainingSecs}s`
+      : update?.phase === "committed"
+        ? " · updated"
+        : update?.phase === "confirming"
+          ? " · waiting for you"
+          : "";
+  return (
+    <span className="status-playing" title={playing.file ?? playing.title}>
+      ▶ {playing.title || playing.player}
+      {episode}
+      {suffix}
+    </span>
+  );
+}
+
 function NavButton({
   item,
   active,
@@ -163,7 +190,7 @@ function StatusBar({
         </span>
       )}
       <span className="statusbar-spacer" />
-      <span className="muted">Detection: off</span>
+      <DetectionStatus />
     </footer>
   );
 }

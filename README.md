@@ -12,9 +12,9 @@ crates/
   db/           SQLite storage: migrations and per-table repositories (opens Taiga v2 databases)
   settings/     settings.json store (Taiga v2 format) with change notifications
   anitomy/      filename parser, a port of Anitomy checked against the C++ library
-  detect/       media player detection (phase 5)
+  detect/       media player detection on Windows, a port of Anisthesia
   recognition/  title normalisation and matching, anime-relations, library scanning
-  track/        update decision and session state machine (phase 5)
+  track/        what's playing and when to update the list
   sync/         AniList and MyAnimeList clients, browser login, update queue
   share/        Discord presence and webhook (phase 6)
   compat/       Taiga data importers (phase 7)
@@ -48,6 +48,18 @@ npm run build
 ```
 
 `npm run dev` starts Vite on port 1420 and opens the Tauri window.
+
+To see what player detection finds right now, or to test it without a real player:
+
+```bash
+cargo run -p tracker-detect --example detect
+```
+
+```bash
+cargo build -p tracker-detect --example fake_player
+```
+
+`fake_player` opens a file and shows a window with a given class and title; copy it to a player's executable name (e.g. `mpc-hc64.exe`) and run it with `<window class> <title> <file> <seconds>`.
 
 To work on the UI without the app, run `npm run ui:dev` and open <http://localhost:1420> in a browser. Outside the app window the UI uses made-up sample data (`ui/src/mocks.ts`) instead of the backend.
 

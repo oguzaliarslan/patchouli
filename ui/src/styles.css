@@ -517,6 +517,47 @@ textarea {
   margin: 4px 0 0;
 }
 
+.now-playing-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+button.now-playing-title {
+  font-size: 16px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.update-status {
+  margin: 8px 0 0;
+}
+
+.update-status.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+}
+
+.update-status.success {
+  color: var(--success);
+}
+
+.status-playing {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 45%;
+}
+
 .now-playing-icon {
   width: 44px;
   height: 44px;

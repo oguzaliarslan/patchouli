@@ -216,18 +216,20 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 - [x] Golden corpus from the C++ build (for Anitomy; recognition is covered by unit tests, since the C++ recognizer needs Taiga's whole app)
 - **Exit:** recognition tests pass, and a filename can be debugged from Settings › Recognition › Test a file name
 
-### Phase 5: Media detection and auto-update (3–4 weeks, highest technical risk)
-- [ ] `players.anisthesia` parser (tab-indented format, regexes start with `^`)
-- [ ] Windows detector (anisthesia port):
-  - window enumeration (`EnumWindows`, class name, process exe)
-  - `window_title` strategy (regex)
-  - `open_files` strategy (`NtQuerySystemInformation(SystemExtendedHandleInformation)` + `DuplicateHandle` + `GetFinalPathNameByHandle`). This needs care: run it in a worker with timeouts, because some handle types hang
-  - `ui_automation` strategy for browsers/streaming (`IUIAutomation` via the `windows` crate, on a COM STA thread)
-  - Matroska title reading
-- [ ] `track`: port `update_decision.cpp` and the `UpdateSession` state machine as **pure code with an injected clock**, plus exhaustive unit tests (focus pause, OnPlayerClose, dismissal, already-watched, skips-ahead, outside-library)
-- [ ] Commit path: update list entry, append history, push to queue, emit events, send an OS notification for the Confirm phase
-- [ ] Disabled-players list, detection interval, `libraryOnly`, `pauseWhenUnfocused` settings
-- **Exit:** watching a file in mpv, MPC-HC, VLC and PotPlayer updates the list end to end. Browser detection works in Chrome, Edge and Firefox
+### Phase 5: Media detection and auto-update (3–4 weeks, highest technical risk) ✅
+- [x] `players.anisthesia` parser (tab-indented format, regexes start with `^`), same state machine and errors as Anisthesia
+- [x] Windows detector (`crates/detect`, Anisthesia port with the `windows` crate):
+  - window enumeration (`EnumWindows`, class name, process exe, the same filters)
+  - `window_title` strategy (title formats as full-match regexes, first non-empty group)
+  - `open_files` strategy (`NtQuerySystemInformation(SystemExtendedHandleInformation)` + `DuplicateHandle` + `GetFinalPathNameByHandle`), skipping handles that aren't read-only like Anisthesia does, so pipes that hang aren't touched. Detection runs on its own thread, so a slow poll never blocks the UI
+  - `ui_automation` strategy for browsers (`IUIAutomation`, tree walk skipping documents)
+  - Matroska title reading: not ported; Taiga v2 doesn't use it
+- [x] `track`: `update_decision.cpp` and the `UpdateSession` state machine as **pure code driven by ticks**, with tests for focus pause, OnPlayerClose, closing too soon, dismissal, already-watched, skips-ahead, late identification
+- [x] Commit path: list entry via `entry_with_episode_watched` → synchronizer (history + queue + events); OS notification for the Confirm phase
+- [x] Disabled players, detection interval, streaming (browser) switch, `libraryOnly`, `pauseWhenUnfocused`
+- [x] Verified on this machine: real mpv (open files + title) and Firefox (UI Automation) detected; end to end in the app with a fake MPC-HC (`crates/detect/examples/fake_player.rs`): episode 3 recorded after the 10 s delay, history added, change queued
+- [ ] Manual check with VLC, PotPlayer and Chrome/Edge (needs those players and a logged-in account)
+- **Exit:** watching a file updates the list end to end (done with the fake player; real players still to be tried by hand)
 
 ### Phase 6: Sharing and polish (1–2 weeks)
 - [ ] Discord IPC client: handshake, framing, reconnect with backoff, `SET_ACTIVITY` (port `discord_rpc::toJson`, including field-length trimming and up to 2 buttons)

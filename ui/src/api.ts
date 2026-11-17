@@ -213,6 +213,43 @@ export interface LibraryView {
   anime: Record<string, Anime>;
 }
 
+export interface NowPlaying {
+  player: string;
+  browser: boolean;
+  file: string | null;
+  title: string;
+  /** Episode numbers after redirection. */
+  episodes: string[];
+  animeId: number | null;
+  elements: AnitomyElement[];
+}
+
+export type UpdatePhase =
+  | "idle"
+  | "denied"
+  | "countdown"
+  | "waitingForClose"
+  | "confirming"
+  | "committed"
+  | "cancelled";
+
+export type UpdateReason = "none" | "invalidEpisode" | "outsideLibrary" | "alreadyWatched" | "skipsAhead";
+
+export interface UpdateState {
+  phase: UpdatePhase;
+  reason: UpdateReason;
+  remainingSecs: number;
+  animeId: number;
+  episode: number;
+  previousEpisode: number;
+  paused: boolean;
+}
+
+export interface TrackingState {
+  nowPlaying: NowPlaying | null;
+  update: UpdateState;
+}
+
 export type SyncEvent =
   | { type: "queueChanged" }
   | { type: "listChanged" }
@@ -279,6 +316,14 @@ export const api = {
     }),
   openFolder: (animeId: number) => invoke<string>("anime_open_folder", { animeId }),
   scanLibrary: () => invoke<LibraryView>("library_scan"),
+
+  tracking: () => invoke<TrackingState>("tracking_get"),
+  acceptUpdate: () => invoke<UpdateState>("update_accept"),
+  cancelUpdate: () => invoke<UpdateState>("update_cancel"),
+  onNowPlaying: (handler: (nowPlaying: NowPlaying | null) => void): Promise<UnlistenFn> =>
+    listen<NowPlaying | null>("now-playing", (event) => handler(event.payload)),
+  onUpdateState: (handler: (state: UpdateState) => void): Promise<UnlistenFn> =>
+    listen<UpdateState>("update-state", (event) => handler(event.payload)),
 };
 
 /** A new list entry for an anime that isn't in the list. */
