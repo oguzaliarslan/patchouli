@@ -1,0 +1,30 @@
+query (
+  $query: String
+  $season: MediaSeason
+  $seasonYear: Int
+  $format: MediaFormat
+  $status: MediaStatus
+  $sort: [MediaSort]
+  $page: Int
+) {
+  Page(page: $page) {
+    media(
+      search: $query
+      season: $season
+      seasonYear: $seasonYear
+      format: $format
+      status: $status
+      type: ANIME
+      sort: $sort
+    ) {
+      ...MediaFragment
+    }
+    pageInfo {
+      total
+      perPage
+      currentPage
+      lastPage
+      hasNextPage
+    }
+  }
+}

@@ -1,0 +1,31 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+# License pending (see MIGRATION_PLAN.md §3). Files vendored from Taiga are GPL-3.0.
+
+[workspace.dependencies]
+tracker-core = { path = "crates/core" }
+tracker-db = { path = "crates/db" }
+tracker-anitomy = { path = "crates/anitomy" }
+tracker-detect = { path = "crates/detect" }
+tracker-recognition = { path = "crates/recognition" }
+tracker-track = { path = "crates/track" }
+tracker-sync = { path = "crates/sync" }
+tracker-share = { path = "crates/share" }
+tracker-compat = { path = "crates/compat" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bitflags = { version = "2", features = ["serde"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

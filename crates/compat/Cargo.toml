@@ -1,0 +1,10 @@
+[package]
+name = "tracker-compat"
+description = "Importers for Taiga v1 (XML) and v2 (SQLite/INI) data"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+tracker-core.workspace = true

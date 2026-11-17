@@ -1,0 +1,9 @@
+[package]
+name = "tracker-detect"
+description = "Media player detection (port of erengy/anisthesia, MIT)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]

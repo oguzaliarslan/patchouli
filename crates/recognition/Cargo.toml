@@ -1,0 +1,11 @@
+[package]
+name = "tracker-recognition"
+description = "Title normalisation, matching, anime-relations, library scanning"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+tracker-core.workspace = true
+tracker-anitomy.workspace = true
