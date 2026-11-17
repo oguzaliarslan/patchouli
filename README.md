@@ -49,6 +49,8 @@ npm run build
 
 `npm run dev` starts Vite on port 1420 and opens the Tauri window.
 
+To work on the UI without the app, run `npm run ui:dev` and open <http://localhost:1420> in a browser. Outside the app window the UI uses made-up sample data (`ui/src/mocks.ts`) instead of the backend.
+
 ## Logging in to AniList and MyAnimeList
 
 Taiga's client IDs belong to Taiga, so register your own app with each service and give the app its client ID:

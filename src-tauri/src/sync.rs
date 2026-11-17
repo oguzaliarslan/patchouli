@@ -82,6 +82,9 @@ pub struct AccountStatus {
     name: &'static str,
     /// A client ID is set for this service.
     configured: bool,
+    /// How scores are shown: AniList's `POINT_100`, `POINT_10_DECIMAL`,
+    /// `POINT_10`, `POINT_5` or `POINT_3`.
+    score_format: Option<String>,
     username: Option<String>,
     /// The selected service, whose list is shown.
     current: bool,
@@ -91,11 +94,17 @@ pub struct AccountStatus {
 
 fn status(state: &AppState, service: ServiceId) -> AccountStatus {
     let current = state.settings.get().sync_service == service;
+    let account = state.accounts.get(service);
     AccountStatus {
         service,
         name: service.name(),
         configured: state.oauth.is_configured(service),
-        username: state.accounts.get(service).map(|a| a.username),
+        score_format: match service {
+            // MyAnimeList scores are always 1–10.
+            ServiceId::MyAnimeList => Some("POINT_10".into()),
+            _ => account.as_ref().and_then(|a| a.score_format.clone()),
+        },
+        username: account.map(|a| a.username),
         current,
         connected: current
             && state
@@ -197,19 +206,28 @@ pub async fn sync_now(state: State<'_, AppState>) -> CommandResult<()> {
 pub struct ListItem {
     entry: ListEntry,
     anime: Option<Anime>,
+    /// Custom title from per-anime settings.
+    display_title: Option<String>,
+    /// Has changes not yet sent to the service.
+    queued: bool,
 }
 
 /// List entries with their anime, excluding entries waiting to be deleted.
 #[tauri::command]
 pub fn list_get(state: State<'_, AppState>) -> CommandResult<Vec<ListItem>> {
     let db = state.db.lock()?;
-    let anime: std::collections::HashMap<i32, Anime> =
+    let mut anime: std::collections::HashMap<i32, Anime> =
         anime::all(&db)?.into_iter().map(|a| (a.id, a)).collect();
+    let mut titles = crate::library::display_titles(&db)?;
+    let queued: std::collections::HashSet<i32> =
+        queue::all(&db)?.iter().map(|q| q.anime_id).collect();
     Ok(list::all(&db)?
         .into_iter()
         .filter(|e| !e.pending_delete)
         .map(|entry| ListItem {
-            anime: anime.get(&entry.anime_id).cloned(),
+            anime: anime.remove(&entry.anime_id),
+            display_title: titles.remove(&entry.anime_id),
+            queued: queued.contains(&entry.anime_id),
             entry,
         })
         .collect())

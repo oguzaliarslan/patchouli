@@ -3,4 +3,6 @@
 node_modules/
 /ui/dist
 *.log
+# Local preview config (machine-specific paths)
+/.claude/
 .DS_Store

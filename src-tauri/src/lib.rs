@@ -1,7 +1,9 @@
 mod credentials;
 mod error;
+mod library;
 mod paths;
 mod sync;
+mod window;
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -9,6 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_window_state::StateFlags;
 use tracker_db::{anime, history, list, meta, migrations, queue};
 use tracker_settings::{Settings, SettingsStore};
 use tracker_sync::oauth::OAuthConfig;
@@ -126,19 +129,25 @@ pub fn run() {
     tauri::Builder::default()
         // Must be registered first: a second launch focuses the existing window.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+            window::show_main(app);
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        // Visibility is decided by "start in tray", not restored.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::all() - StateFlags::VISIBLE)
+                .build(),
+        )
         .setup(|app| {
             let state = init_state(app.handle())?;
             start_sync(app.handle(), &state);
+            window::create_tray(app.handle())?;
+            window::show_on_start(app.handle(), &state);
             app.manage(state);
             Ok(())
         })
+        .on_window_event(window::on_window_event)
         .invoke_handler(tauri::generate_handler![
             app_info,
             settings_get,
@@ -152,6 +161,13 @@ pub fn run() {
             sync::list_remove_entry,
             sync::queue_get,
             sync::anime_search,
+            library::anime_get,
+            library::anime_refresh,
+            library::anime_settings_save,
+            library::history_get,
+            library::history_remove,
+            library::history_clear,
+            library::players_get,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

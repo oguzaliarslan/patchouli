@@ -193,16 +193,19 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 - [ ] Proxy support (`network.proxy.*`)
 - **Exit:** integration tests against `wiremock` pass. Manual login and sync need registered client IDs (see README)
 
-### Phase 3: UI foundation (3–4 weeks, can run in parallel)
-- [ ] App shell: sidebar navigation (Home, Search, List, History, Library), status bar, now-playing bar
-- [ ] Anime list: virtualised table **and** card view, filtering and sorting (primary + secondary, persisted), status tabs, context menu (`media_menu`)
-- [ ] Anime detail dialog/page (`media_dialog`) with list-entry editor
-- [ ] Search page with filters (year, season, type, status, sort)
-- [ ] History page
-- [ ] Settings: Application, Accounts, Library, Recognition, Media players, Streaming, Sharing, Advanced
-- [ ] Theming: light/dark/system, NSFW hiding, title language (romaji/english/native)
-- [ ] Tray icon, close/start to tray, window-state persistence
-- **Exit:** a user can log in, see the synced list, edit entries and search, with no detection yet
+### Phase 3: UI foundation (3–4 weeks, can run in parallel) ✅
+- [x] App shell: sidebar navigation (Home, Search, List, History, Library, Settings), status bar with sync state and errors, now-playing placeholder on Home
+- [x] Anime list: virtualised table **and** card view, text and type filters, sorting (click for primary, Shift+click for secondary, persisted), status tabs with counts, context menu (`media_menu`: details, edit, watched episode, status, score, open page, copy, remove)
+- [x] Anime detail dialog (`media_dialog`): details, list-entry editor (fuzzy dates, score in the account's format), per-anime settings (display title, folder, alternative titles)
+- [x] Search page with filters (season, year, type, status); season browsing
+- [x] History page, grouped by day
+- [x] Settings: Application, Accounts, Library, Recognition, Media players (from `players.anisthesia`), Streaming, Sharing, Advanced
+- [x] Theming: light/dark/system (page and title bar), NSFW hiding, title language (romaji/english/native)
+- [x] Tray icon (show, sync, quit), close/start to tray, window position and size persistence
+- [x] Browser preview with sample data (`src/mocks.ts`) for UI work without the app
+- [ ] Posters load straight from the services' URLs; a disk cache is still to do
+- [ ] i18n (phase 6)
+- **Exit:** a user can log in, see the synced list, edit entries and search, with no detection yet (verified against sample data; a real login needs client IDs)
 
 ### Phase 4: Recognition (2–3 weeks, test-driven)
 - [ ] `anitomy` crate: port parser and options. **Must pass anitomy's `test/data.json`**

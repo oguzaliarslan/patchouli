@@ -1,277 +1,178 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  api,
-  errorMessage,
-  type AccountStatus,
-  type AppInfo,
-  type CommandError,
-  type ListItem,
-  type QueueItem,
-} from "./api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimeDialog } from "./components/AnimeDialog";
+import { ContextMenu, type MenuState } from "./components/ContextMenu";
+import { Icon, type IconName } from "./components/Icon";
+import { AppContext, type AppActions, type Page } from "./lib/context";
+import { usePref } from "./lib/prefs";
+import { useBackendEvents, useCurrentAccount, useQueue, useSettings } from "./lib/queries";
+import { useColorScheme } from "./lib/theme";
+import { HistoryPage } from "./pages/HistoryPage";
+import { HomePage } from "./pages/HomePage";
+import { ListPage } from "./pages/ListPage";
+import { SearchPage } from "./pages/SearchPage";
+import { SettingsPage } from "./pages/SettingsPage";
 
-type Page = "home" | "search" | "list" | "history" | "library";
-
-const PAGES: { id: Page; label: string; phase?: string }[] = [
-  { id: "home", label: "Home" },
-  { id: "list", label: "Anime List" },
-  { id: "search", label: "Search", phase: "Phase 3" },
-  { id: "history", label: "History", phase: "Phase 3" },
-  { id: "library", label: "Library", phase: "Phase 4" },
+const NAV: { id: Page; label: string; icon: IconName }[] = [
+  { id: "home", label: "Home", icon: "home" },
+  { id: "list", label: "Anime List", icon: "list" },
+  { id: "search", label: "Search", icon: "search" },
+  { id: "history", label: "History", icon: "history" },
+  { id: "library", label: "Library", icon: "folder" },
 ];
 
-const STATUS_LABELS: Record<string, string> = {
-  Watching: "Watching",
-  Completed: "Completed",
-  OnHold: "On hold",
-  Dropped: "Dropped",
-  PlanToWatch: "Plan to watch",
-  NotInList: "—",
-};
-
 export default function App() {
-  const [page, setPage] = useState<Page>("home");
-  const [info, setInfo] = useState<AppInfo | null>(null);
-  const [accounts, setAccounts] = useState<AccountStatus[]>([]);
-  const [items, setItems] = useState<ListItem[]>([]);
-  const [queue, setQueue] = useState<QueueItem[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [loggingIn, setLoggingIn] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = usePref<Page>("page", "home");
+  const [dialog, setDialog] = useState<{ id: number; tab: "details" | "entry" | "settings" } | null>(null);
+  const [menu, setMenu] = useState<MenuState | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
 
-  const refresh = useCallback(() => {
-    api.appInfo().then(setInfo).catch((e) => setError(errorMessage(e)));
-    api.accounts().then(setAccounts).catch((e) => setError(errorMessage(e)));
-    api.list().then(setItems).catch((e) => setError(errorMessage(e)));
-    api.queue().then(setQueue).catch((e) => setError(errorMessage(e)));
+  const { data: settings } = useSettings();
+  useColorScheme(settings?.["app.colorScheme"]);
+  const sync = useBackendEvents();
+
+  const notify = useCallback((message: string) => {
+    setToast(message);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 3500);
   }, []);
 
+  const actions = useMemo<AppActions>(
+    () => ({
+      navigate: setPage,
+      openAnime: (id, tab = "details") => setDialog({ id, tab }),
+      showMenu: setMenu,
+      notify,
+    }),
+    [setPage, notify],
+  );
+
+  // Block the browser's own context menu outside inputs.
   useEffect(() => {
-    refresh();
-    const unlisten = api.onSync((event) => {
-      if (event.type === "busy") setBusy(event.busy);
-      else if (event.type === "error") setError(event.message);
-      else refresh();
-    });
-    return () => {
-      unlisten.then((f) => f());
+    const block = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("input, textarea, [contenteditable]")) e.preventDefault();
     };
-  }, [refresh]);
-
-  async function login(account: AccountStatus) {
-    setError(null);
-    setLoggingIn(account.service);
-    try {
-      try {
-        await api.login(account.service);
-      } catch (e) {
-        if ((e as CommandError).code !== "replace-local-data") throw e;
-        if (!window.confirm(`${(e as CommandError).message}\n\nContinue?`)) return;
-        await api.login(account.service, true);
-      }
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setLoggingIn(null);
-      refresh();
-    }
-  }
-
-  async function logout(account: AccountStatus) {
-    setError(null);
-    await api.logout(account.service).catch((e) => setError(errorMessage(e)));
-    refresh();
-  }
-
-  async function syncNow() {
-    setError(null);
-    setBusy(true);
-    try {
-      await api.syncNow();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-      refresh();
-    }
-  }
-
-  async function addEpisode(item: ListItem) {
-    const total = item.anime?.episodeCount ?? 0;
-    const next = item.entry.watchedEpisodes + 1;
-    if (total > 0 && next > total) return;
-    await api
-      .saveEntry({ ...item.entry, watchedEpisodes: next })
-      .catch((e) => setError(errorMessage(e)));
-  }
-
-  const current = PAGES.find((p) => p.id === page)!;
-  const connected = accounts.find((a) => a.connected);
+    window.addEventListener("contextmenu", block);
+    return () => window.removeEventListener("contextmenu", block);
+  }, []);
 
   return (
-    <div className="shell">
-      <nav className="sidebar">
-        <div className="brand">Tracker</div>
-        {PAGES.map((p) => (
-          <button
-            key={p.id}
-            className={p.id === page ? "nav-item active" : "nav-item"}
-            onClick={() => setPage(p.id)}
-          >
-            {p.label}
-          </button>
-        ))}
-      </nav>
+    <AppContext.Provider value={actions}>
+      <div className="shell">
+        <nav className="sidebar" aria-label="Main">
+          <div className="brand">Tracker</div>
+          {NAV.map((item) => (
+            <NavButton key={item.id} item={item} active={page === item.id} onClick={() => setPage(item.id)} />
+          ))}
+          <div className="sidebar-spacer" />
+          <NavButton
+            item={{ id: "settings", label: "Settings", icon: "settings" }}
+            active={page === "settings"}
+            onClick={() => setPage("settings")}
+          />
+        </nav>
 
-      <main className="content">
-        <h1>{current.label}</h1>
-        {current.phase && <p className="muted">Not implemented yet ({current.phase}).</p>}
-        {error && (
-          <p className="error" role="alert">
-            {error}{" "}
-            <button className="link" onClick={() => setError(null)}>
-              Dismiss
-            </button>
-          </p>
-        )}
+        <main className="content">
+          {page === "home" && <HomePage sync={sync} />}
+          {page === "list" && <ListPage />}
+          {page === "search" && <SearchPage />}
+          {page === "history" && <HistoryPage />}
+          {page === "library" && (
+            <div className="page">
+              <header className="page-header">
+                <h1>Library</h1>
+              </header>
+              <p className="empty">
+                Library scanning arrives with recognition (phase 4). Add your anime folders in
+                Settings › Library.
+              </p>
+            </div>
+          )}
+          {page === "settings" && <SettingsPage />}
+        </main>
 
-        {page === "home" && (
-          <>
-            <section className="card">
-              <h2>Accounts</h2>
-              <table className="table">
-                <tbody>
-                  {accounts.map((a) => (
-                    <tr key={a.service}>
-                      <td>
-                        {a.name}
-                        {a.current && <span className="badge">current</span>}
-                      </td>
-                      <td className="muted">
-                        {!a.configured
-                          ? "No client ID configured"
-                          : a.username
-                            ? `Logged in as ${a.username}`
-                            : "Not logged in"}
-                      </td>
-                      <td className="actions">
-                        {a.username ? (
-                          <button onClick={() => logout(a)}>Log out</button>
-                        ) : (
-                          <button
-                            disabled={!a.configured || loggingIn !== null}
-                            onClick={() => login(a)}
-                          >
-                            {loggingIn === a.service ? "Waiting for browser…" : "Log in"}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="row">
-                <button disabled={!connected || busy} onClick={syncNow}>
-                  {busy ? "Syncing…" : "Sync now"}
-                </button>
-                <span className="muted">
-                  {queue.length === 0
-                    ? "No unsent changes"
-                    : `${queue.length} unsent change${queue.length === 1 ? "" : "s"}`}
-                </span>
-              </div>
-              {queue.some((q) => q.lastError) && (
-                <ul className="muted small">
-                  {queue
-                    .filter((q) => q.lastError)
-                    .map((q) => (
-                      <li key={q.animeId}>
-                        #{q.animeId}: {q.lastError} (tried {q.retryCount}×)
-                      </li>
-                    ))}
-                </ul>
-              )}
-            </section>
+        <StatusBar sync={sync} onOpenAccounts={() => setPage("settings")} />
+      </div>
 
-            {info && (
-              <section className="card">
-                <h2>Storage</h2>
-                <dl>
-                  <dt>Version</dt>
-                  <dd>
-                    {info.name} {info.version}
-                  </dd>
-                  <dt>Data folder</dt>
-                  <dd>
-                    <code>{info.dataDir}</code>
-                    {info.portable && " (portable)"}
-                  </dd>
-                  <dt>Anime / entries</dt>
-                  <dd>
-                    {info.animeCount} / {info.listCount}
-                  </dd>
-                  <dt>History</dt>
-                  <dd>{info.historyCount}</dd>
-                </dl>
-              </section>
-            )}
-          </>
-        )}
+      {dialog && (
+        <AnimeDialog
+          key={dialog.id}
+          animeId={dialog.id}
+          initialTab={dialog.tab}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {menu && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
+      {toast && (
+        <div className="toast" role="status">
+          {toast}
+        </div>
+      )}
+    </AppContext.Provider>
+  );
+}
 
-        {page === "list" && (
-          <section className="card wide">
-            {items.length === 0 ? (
-              <p className="muted">Your list is empty. Log in and sync from Home.</p>
-            ) : (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Progress</th>
-                    <th>Score</th>
-                    <th>Status</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => {
-                    const queued = queue.some((q) => q.animeId === item.entry.animeId);
-                    return (
-                      <tr key={item.entry.animeId}>
-                        <td>
-                          {item.anime?.titles.romaji || `#${item.entry.animeId}`}
-                          {queued && <span className="badge">unsent</span>}
-                        </td>
-                        <td>
-                          {item.entry.watchedEpisodes}/{item.anime?.episodeCount || "?"}
-                        </td>
-                        <td>{item.entry.score ? item.entry.score / 10 : "—"}</td>
-                        <td>{STATUS_LABELS[item.entry.status] ?? item.entry.status}</td>
-                        <td className="actions">
-                          <button onClick={() => addEpisode(item)} title="Watched next episode">
-                            +1
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </section>
-        )}
-      </main>
+function NavButton({
+  item,
+  active,
+  onClick,
+}: {
+  item: { id: Page; label: string; icon: IconName };
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button className={active ? "nav-item active" : "nav-item"} aria-current={active ? "page" : undefined} onClick={onClick}>
+      <Icon name={item.icon} />
+      <span>{item.label}</span>
+    </button>
+  );
+}
 
-      <footer className="statusbar">
+function StatusBar({
+  sync,
+  onOpenAccounts,
+}: {
+  sync: ReturnType<typeof useBackendEvents>;
+  onOpenAccounts: () => void;
+}) {
+  const { connected, account } = useCurrentAccount();
+  const { data: queue } = useQueue();
+  const pending = queue?.length ?? 0;
+
+  return (
+    <footer className="statusbar">
+      <span className={sync.busy ? "status-sync busy" : "status-sync"}>
+        <Icon name="sync" size={14} />
+        {sync.busy
+          ? "Syncing…"
+          : connected
+            ? `${connected.name}: ${connected.username}`
+            : account?.username
+              ? `${account.name}: not connected`
+              : "Not logged in"}
+      </span>
+      {pending > 0 && (
         <span>
-          Sync:{" "}
-          {busy
-            ? "syncing…"
-            : connected
-              ? `${connected.name} (${connected.username})`
-              : "not connected"}
+          {pending} unsent change{pending === 1 ? "" : "s"}
         </span>
-        <span>Detection: off</span>
-      </footer>
-    </div>
+      )}
+      {sync.error && (
+        <span className="status-error" title={sync.error}>
+          {sync.error}
+          {sync.unauthorized && (
+            <button className="link" onClick={onOpenAccounts}>
+              Log in again
+            </button>
+          )}
+          <button className="link" onClick={sync.clearError}>
+            Dismiss
+          </button>
+        </span>
+      )}
+      <span className="statusbar-spacer" />
+      <span className="muted">Detection: off</span>
+    </footer>
   );
 }
