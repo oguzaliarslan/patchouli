@@ -1,12 +1,17 @@
-//! Tray icon, close-to-tray and start-in-tray.
+//! Tray icon, close-to-tray, minimise-to-tray, start-in-tray and starting
+//! with Windows.
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, Window, WindowEvent};
+use tauri_plugin_autostart::ManagerExt;
 
 use crate::AppState;
 
 pub const MAIN: &str = "main";
+
+/// Passed when Windows starts the app at sign-in.
+pub const AUTOSTART_ARG: &str = "--autostart";
 
 pub fn show_main(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(MAIN) {
@@ -60,21 +65,49 @@ pub fn on_window_event(window: &Window, event: &WindowEvent) {
     if window.label() != MAIN {
         return;
     }
-    if let WindowEvent::CloseRequested { api, .. } = event {
-        let close_to_tray = window
-            .try_state::<AppState>()
-            .is_some_and(|state| state.settings.get().app_close_to_tray);
-        if close_to_tray {
+    let settings = window
+        .try_state::<AppState>()
+        .map(|state| state.settings.get());
+    match event {
+        WindowEvent::CloseRequested { api, .. }
+            if settings.as_ref().is_some_and(|s| s.app_close_to_tray) =>
+        {
             api.prevent_close();
             let _ = window.hide();
         }
+        // Minimising resizes the window; hide it to the tray instead.
+        WindowEvent::Resized(_)
+            if settings.as_ref().is_some_and(|s| s.app_minimize_to_tray)
+                && window.is_minimized().unwrap_or(false) =>
+        {
+            let _ = window.hide();
+        }
+        _ => {}
+    }
+}
+
+/// Registers or removes the app from the programs Windows starts at sign-in.
+pub fn apply_autostart(app: &AppHandle, enabled: bool) {
+    let autostart = app.autolaunch();
+    if autostart.is_enabled().unwrap_or(false) == enabled {
+        return;
+    }
+    let result = if enabled {
+        autostart.enable()
+    } else {
+        autostart.disable()
+    };
+    match result {
+        Ok(()) => log::info!("Start with Windows: {}", if enabled { "on" } else { "off" }),
+        Err(e) => log::warn!("Couldn't change starting with Windows: {e}"),
     }
 }
 
 /// The window starts hidden (see `tauri.conf.json`) to avoid a flash, and is
-/// shown here unless "start in tray" is on.
+/// shown here unless "start in tray" is on or Windows started the app.
 pub fn show_on_start(app: &AppHandle, state: &AppState) {
-    if !state.settings.get().app_start_in_tray {
+    let autostarted = std::env::args().any(|a| a == AUTOSTART_ARG);
+    if !state.settings.get().app_start_in_tray && !autostarted {
         show_main(app);
     }
 }

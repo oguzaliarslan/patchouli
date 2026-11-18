@@ -25,6 +25,7 @@ export const keys = {
   tracking: ["tracking"] as const,
   taiga: ["taiga"] as const,
   torrents: ["torrents"] as const,
+  available: ["available"] as const,
   filterPresets: ["filterPresets"] as const,
   torrentArchive: ["torrentArchive"] as const,
 };
@@ -149,6 +150,7 @@ export function useBackendEvents(): SyncState {
       }
     });
     const torrents = api.onTorrents((feed) => queryClient.setQueryData(keys.torrents, feed));
+    const available = api.onLibraryAvailable((map) => queryClient.setQueryData(keys.available, map));
     const settings = api.onSettingsChanged((changed) => {
       void queryClient.invalidateQueries({ queryKey: keys.settings });
       if (changed.includes("sync.service")) {
@@ -159,6 +161,7 @@ export function useBackendEvents(): SyncState {
       void sync.then((f) => f());
       void settings.then((f) => f());
       void torrents.then((f) => f());
+      void available.then((f) => f());
     };
   }, []);
 

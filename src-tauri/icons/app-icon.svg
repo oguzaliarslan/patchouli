@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Patchouli: an open grimoire under a crescent moon (motifs of Patchouli
+       Knowledge, the library magician of the Touhou Project). Original
+       drawing; flat colours so it stays legible at 16 px. -->
+  <defs>
+    <mask id="crescent">
+      <rect width="1024" height="1024" fill="#000"/>
+      <circle cx="512" cy="356" r="170" fill="#fff"/>
+      <circle cx="590" cy="300" r="150" fill="#000"/>
+    </mask>
+  </defs>
+
+  <!-- Tile -->
+  <rect x="48" y="48" width="928" height="928" rx="208" fill="#3a2770"/>
+  <rect x="48" y="48" width="928" height="928" rx="208" fill="none" stroke="#5b40b0" stroke-width="12"/>
+
+  <!-- Crescent moon -->
+  <rect width="1024" height="1024" fill="#f5d77e" mask="url(#crescent)"/>
+
+  <!-- Open book: cover -->
+  <path d="M176 610 Q344 548 512 618 Q680 548 848 610 L848 800 Q680 742 512 812 Q344 742 176 800 Z" fill="#7c56f6"/>
+  <!-- Pages -->
+  <path d="M206 594 Q350 540 500 600 L500 780 Q350 724 206 776 Z" fill="#efeafc"/>
+  <path d="M818 594 Q674 540 524 600 L524 780 Q674 724 818 776 Z" fill="#e2daf8"/>
+  <!-- Lines of text -->
+  <g stroke="#b9aae6" stroke-width="14" stroke-linecap="round" fill="none">
+    <path d="M262 628 Q352 598 446 630"/>
+    <path d="M262 676 Q352 646 446 678"/>
+    <path d="M262 724 Q352 694 410 714"/>
+    <path d="M578 630 Q672 598 762 628"/>
+    <path d="M578 678 Q672 646 762 676"/>
+    <path d="M614 714 Q672 694 762 724"/>
+  </g>
+  <!-- Spine -->
+  <path d="M512 606 L512 806" stroke="#3a2770" stroke-width="16" stroke-linecap="round"/>
+</svg>

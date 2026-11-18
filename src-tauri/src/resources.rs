@@ -62,17 +62,16 @@ async fn refresh(
 pub fn start(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let Ok(http) = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-        else {
-            return;
-        };
         tokio::time::sleep(Duration::from_secs(30)).await;
         loop {
             let state = app.state::<AppState>();
-            if state.settings.get().app_check_for_updates {
+            // Made each time, so a changed proxy applies.
+            let http = patchouli_sync::http::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .build();
+            if let Ok(http) = http
+                && state.settings.get().app_check_for_updates
+            {
                 let cache = state.data_dir.join(CACHE);
                 let relations = refresh(&http, &cache, RELATIONS,
                     "https://raw.githubusercontent.com/erengy/anime-relations/master/anime-relations.txt",

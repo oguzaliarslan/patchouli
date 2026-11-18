@@ -82,13 +82,14 @@ async fn check(app: &AppHandle) -> CommandResult<Option<UpdateInfo>> {
     let url = GITHUB_REPO
         .and_then(manifest_url)
         .ok_or_else(|| CommandError::new("Updates aren't set up in this build."))?;
-    let update = app
+    let mut updater = app
         .updater_builder()
         .endpoints(vec![url])?
-        .timeout(Duration::from_secs(30))
-        .build()?
-        .check()
-        .await?;
+        .timeout(Duration::from_secs(30));
+    if let Some(proxy) = patchouli_sync::http::proxy().and_then(|p| p.url_with_credentials()) {
+        updater = updater.proxy(proxy);
+    }
+    let update = updater.build()?.check().await?;
     let info = update.as_ref().map(|u| UpdateInfo {
         version: u.version.clone(),
         current_version: u.current_version.clone(),

@@ -93,6 +93,17 @@ pub struct Settings {
     pub app_check_for_updates: bool,
     #[serde(rename = "app.closeToTray")]
     pub app_close_to_tray: bool,
+    /// Mark list entries whose next episode is in the library.
+    #[serde(rename = "app.list.highlightNewEpisodes")]
+    pub list_highlight_new_episodes: bool,
+    /// …and show them first.
+    #[serde(rename = "app.list.newEpisodesFirst")]
+    pub list_new_episodes_first: bool,
+    #[serde(rename = "app.minimizeToTray")]
+    pub app_minimize_to_tray: bool,
+    /// Registered to start when the user signs in to Windows.
+    #[serde(rename = "app.startWithWindows")]
+    pub app_start_with_windows: bool,
     #[serde(rename = "app.colorScheme")]
     pub app_color_scheme: ColorScheme,
     #[serde(rename = "app.hideNsfw")]
@@ -104,6 +115,12 @@ pub struct Settings {
 
     #[serde(rename = "library.folders")]
     pub library_folders: Vec<String>,
+    /// Video files smaller than this (MB) are ignored.
+    #[serde(rename = "library.minFileSize")]
+    pub library_min_file_size_mb: u32,
+    /// Rescan when files in the library folders change.
+    #[serde(rename = "library.watchFolders")]
+    pub library_watch_folders: bool,
 
     /// App version that last wrote the file.
     #[serde(rename = "meta.version")]
@@ -151,6 +168,13 @@ pub struct Settings {
     pub streaming_detection_enabled: bool,
 
     /// Seconds, between [`UPDATE_DELAY_MIN`] and [`UPDATE_DELAY_MAX`].
+    /// Notify when an episode is recognised.
+    #[serde(rename = "track.notify.recognized")]
+    pub notify_recognized: bool,
+    /// Notify when something plays that isn't recognised.
+    #[serde(rename = "track.notify.notRecognized")]
+    pub notify_not_recognized: bool,
+
     #[serde(rename = "track.update.delay")]
     pub update_delay_secs: u32,
     #[serde(rename = "track.update.libraryOnly")]
@@ -215,11 +239,17 @@ impl Default for Settings {
         Self {
             app_check_for_updates: true,
             app_close_to_tray: true,
+            list_highlight_new_episodes: true,
+            list_new_episodes_first: false,
+            app_minimize_to_tray: false,
+            app_start_with_windows: false,
             app_color_scheme: ColorScheme::System,
             app_hide_nsfw: true,
             app_start_in_tray: false,
             app_title_language: TitleLanguage::Romaji,
             library_folders: Vec::new(),
+            library_min_file_size_mb: 10,
+            library_watch_folders: true,
             meta_version: String::new(),
             proxy_type: ProxyType::Http,
             proxy_host: String::new(),
@@ -237,6 +267,8 @@ impl Default for Settings {
             detection_enabled: true,
             detection_interval_ms: 3000,
             streaming_detection_enabled: false,
+            notify_recognized: true,
+            notify_not_recognized: true,
             update_delay_secs: 120,
             update_library_only: false,
             update_pause_when_unfocused: false,

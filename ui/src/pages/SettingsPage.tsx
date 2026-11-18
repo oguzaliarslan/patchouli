@@ -136,10 +136,22 @@ function ApplicationSection({ settings, change }: SectionProps) {
         onChange={(v) => change("app.closeToTray", v)}
       />
       <Toggle
+        label="Minimise to tray"
+        description="Minimising hides the window; open it again from the notification area."
+        checked={settings["app.minimizeToTray"]}
+        onChange={(v) => change("app.minimizeToTray", v)}
+      />
+      <Toggle
         label="Start in tray"
         description="Start without showing the window."
         checked={settings["app.startInTray"]}
         onChange={(v) => change("app.startInTray", v)}
+      />
+      <Toggle
+        label="Start with Windows"
+        description="Start in the tray when you sign in to Windows."
+        checked={settings["app.startWithWindows"]}
+        onChange={(v) => change("app.startWithWindows", v)}
       />
     </section>
   );
@@ -248,7 +260,10 @@ function LibrarySection({ settings, change }: SectionProps) {
   return (
     <section className="settings-section">
       <h2>Library</h2>
-      <p className="muted">Folders where your anime are. They're scanned to find episodes (phase 4).</p>
+      <p className="muted">
+        Folders where your anime are. They're scanned when Patchouli starts and every 30 minutes to find the episodes
+        you have.
+      </p>
       {folders.length === 0 ? (
         <p className="empty">No folders yet.</p>
       ) : (
@@ -271,6 +286,42 @@ function LibrarySection({ settings, change }: SectionProps) {
         </ul>
       )}
       <button onClick={() => void add()}>Add folder…</button>
+
+      <h3>Available episodes</h3>
+      <Toggle
+        label="Watch the folders for changes"
+        description="Rescan a few seconds after files are added, renamed or removed."
+        checked={settings["library.watchFolders"]}
+        onChange={(v) => change("library.watchFolders", v)}
+      />
+      <Field label="Ignore files smaller than" htmlFor="min-file-size">
+        <span className="inline">
+          <input
+            id="min-file-size"
+            type="number"
+            min={0}
+            max={2048}
+            className="narrow"
+            value={settings["library.minFileSize"]}
+            onChange={(e) => {
+              const mb = Number.parseInt(e.target.value, 10);
+              if (mb >= 0 && mb <= 2048) change("library.minFileSize", mb);
+            }}
+          />
+          <span className="muted">MB (skips samples and previews)</span>
+        </span>
+      </Field>
+      <Toggle
+        label="Highlight anime whose next episode is on disk"
+        checked={settings["app.list.highlightNewEpisodes"]}
+        onChange={(v) => change("app.list.highlightNewEpisodes", v)}
+      />
+      <Toggle
+        label="Show them first in the list"
+        checked={settings["app.list.newEpisodesFirst"]}
+        disabled={!settings["app.list.highlightNewEpisodes"]}
+        onChange={(v) => change("app.list.newEpisodesFirst", v)}
+      />
     </section>
   );
 }
@@ -323,6 +374,19 @@ function RecognitionSection({ settings, change }: SectionProps) {
         label="Only update for episodes in library folders"
         checked={settings["track.update.libraryOnly"]}
         onChange={(v) => change("track.update.libraryOnly", v)}
+      />
+
+      <h3>Notifications</h3>
+      <Toggle
+        label="When an episode is recognised"
+        description="Shows the anime, episode and release group."
+        checked={settings["track.notify.recognized"]}
+        onChange={(v) => change("track.notify.recognized", v)}
+      />
+      <Toggle
+        label="When something playing isn't recognised"
+        checked={settings["track.notify.notRecognized"]}
+        onChange={(v) => change("track.notify.notRecognized", v)}
       />
 
       <h3>Test a file name</h3>
@@ -637,7 +701,10 @@ function AdvancedSection({ settings, change }: SectionProps) {
       </Field>
 
       <h3>Proxy</h3>
-      <p className="muted small">Saved now; used for requests once proxy support is added.</p>
+      <p className="muted small">
+        Used for syncing, logins, torrents, the webhook and updates. Leave the host empty to use the Windows proxy
+        settings. Posters always use the Windows proxy.
+      </p>
       <Field label="Type" htmlFor="proxy-type">
         <select
           id="proxy-type"

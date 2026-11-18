@@ -22,11 +22,18 @@ export interface AppInfo {
 export interface Settings {
   "app.checkForUpdates": boolean;
   "app.closeToTray": boolean;
+  "app.list.highlightNewEpisodes": boolean;
+  "app.list.newEpisodesFirst": boolean;
+  "app.minimizeToTray": boolean;
+  "app.startWithWindows": boolean;
   "app.colorScheme": "system" | "light" | "dark";
   "app.hideNsfw": boolean;
   "app.startInTray": boolean;
   "app.titleLanguage": "romaji" | "english" | "native";
   "library.folders": string[];
+  /** MB. */
+  "library.minFileSize": number;
+  "library.watchFolders": boolean;
   "meta.version": string;
   "network.proxy.type": "http" | "socks5";
   "network.proxy.host": string;
@@ -44,6 +51,8 @@ export interface Settings {
   "track.detection.enabled": boolean;
   "track.detection.interval": number;
   "track.detection.streaming.enabled": boolean;
+  "track.notify.recognized": boolean;
+  "track.notify.notRecognized": boolean;
   "track.update.delay": number;
   "track.update.libraryOnly": boolean;
   "track.update.pauseWhenUnfocused": boolean;
@@ -521,6 +530,11 @@ export const api = {
   stats: () => invoke<Stats>("stats_get"),
   /** Fetches the account again (name, picture). */
   refreshProfile: () => invoke<AccountStatus>("profile_refresh"),
+
+  /** Episodes in the library folders, per anime ID. */
+  libraryAvailable: () => invoke<Record<number, number[]>>("library_available"),
+  onLibraryAvailable: (handler: (available: Record<number, number[]>) => void): Promise<UnlistenFn> =>
+    listen<Record<number, number[]>>("library-available", (event) => handler(event.payload)),
 
   torrents: () => invoke<Feed | null>("torrents_get"),
   /** Checks `url`, or the feed in settings. */

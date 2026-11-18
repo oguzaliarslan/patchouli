@@ -178,6 +178,57 @@ fn read_settings(settings: &Element, slug: &str) -> Map<String, Value> {
             .collect();
         map.insert("library.folders".into(), json!(folders));
     }
+    if let Some(folders) = settings.child("anime").and_then(|a| a.child("folders")) {
+        if let Some(watch) = folders.child("watch").filter(|w| w.has_attr("enabled")) {
+            map.insert(
+                "library.watchFolders".into(),
+                json!(watch.attr_bool("enabled")),
+            );
+        }
+        if let Some(scan) = folders.child("scan").filter(|s| s.has_attr("minfilesize")) {
+            // Bytes in v1; whole megabytes here.
+            let mb = (scan.attr_int("minfilesize").max(0) + 1024 * 1024 - 1) / (1024 * 1024);
+            map.insert("library.minFileSize".into(), json!(mb));
+        }
+    }
+    let program = settings.child("program");
+    let flag = |path: &[&str], attr: &str| {
+        let mut node = program?;
+        for name in path {
+            node = node.child(name)?;
+        }
+        node.has_attr(attr).then(|| node.attr_bool(attr))
+    };
+    for (key, path, attr) in [
+        (
+            "app.list.highlightNewEpisodes",
+            &["list", "filter", "episodes"][..],
+            "highlight",
+        ),
+        (
+            "app.list.newEpisodesFirst",
+            &["list", "filter", "episodes"][..],
+            "highlightedontop",
+        ),
+        ("app.startWithWindows", &["general"][..], "autostart"),
+        ("app.minimizeToTray", &["general"][..], "minimize"),
+        ("app.closeToTray", &["general"][..], "close"),
+        ("app.startInTray", &["startup"][..], "minimize"),
+        (
+            "track.notify.recognized",
+            &["notifications", "balloon"][..],
+            "recognized",
+        ),
+        (
+            "track.notify.notRecognized",
+            &["notifications", "balloon"][..],
+            "notrecognized",
+        ),
+    ] {
+        if let Some(value) = flag(path, attr) {
+            map.insert(key.into(), json!(value));
+        }
+    }
     if let Some(recognition) = settings.child("recognition") {
         if let Some(players) = recognition.child("mediaplayers") {
             let disabled: Vec<&str> = players
@@ -639,7 +690,7 @@ mod tests {
     <myanimelist username="other" />
   </account>
   <anime>
-    <folders><root folder="D:\Anime" /><root folder="E:\More Anime" /></folders>
+    <folders><root folder="D:\Anime" /><root folder="E:\More Anime" /><watch enabled="false" /><scan minfilesize="10485760" /></folders>
     <items><item id="21" folder="D:\Anime\One Piece" titles="OP; Wan Pisu" /><item id="0" folder="x" /></items>
   </anime>
   <recognition>
@@ -648,8 +699,9 @@ mod tests {
     <streaming enabled="true" />
   </recognition>
   <program>
-    <general enablesharing="true" />
-    <list><action titlelang="english" /></list>
+    <general enablesharing="true" autostart="true" minimize="false" />
+    <notifications><balloon recognized="true" notrecognized="false" /></notifications>
+    <list><action titlelang="english" /><filter><episodes highlight="false" highlightedontop="true" /></filter></list>
     <proxy host="socks5://proxy.local:1080" username="u" password="p" />
   </program>
   <announce><discord enabled="true" /><mirc channels="&#03;4#anime" /></announce>
@@ -798,6 +850,13 @@ mod tests {
         assert_eq!(filters.len(), 1, "the broken filter is skipped");
         assert_eq!(filters[0]["animeIds"], json!([21]));
         assert_eq!(filters[0]["conditions"][0]["element"], "episode_group");
+        assert_eq!(s["library.watchFolders"], false);
+        assert_eq!(s["library.minFileSize"], 10);
+        assert_eq!(s["app.startWithWindows"], true);
+        assert_eq!(s["app.minimizeToTray"], false);
+        assert_eq!(s["app.list.highlightNewEpisodes"], false);
+        assert_eq!(s["app.list.newEpisodesFirst"], true);
+        assert_eq!(s["track.notify.notRecognized"], false);
         // Tokens are never imported.
         assert!(!serde_json::to_string(s).unwrap().contains("secret-token"));
         let _ = std::fs::remove_dir_all(&dir);

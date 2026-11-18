@@ -239,13 +239,13 @@ pub struct LibraryView {
 
 /// Recognises every video file in the library folders.
 #[tauri::command]
-pub async fn library_scan(state: State<'_, AppState>) -> CommandResult<LibraryView> {
-    let folders = library_folders(&state);
+pub async fn library_scan(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> CommandResult<LibraryView> {
+    let scan = crate::available::rescan(&app).await?;
     let recognizer = state.recognition.get(&state)?;
-    let search = Arc::clone(&recognizer);
-    let scan =
-        tauri::async_runtime::spawn_blocking(move || scanner::scan_library(&folders, &search))
-            .await?;
+    let scan = LibraryScan::clone(&scan);
     let anime = scan
         .anime
         .iter()

@@ -118,11 +118,17 @@ history.sort((a, b) => a.time - b.time);
 let settings: Settings = {
   "app.checkForUpdates": true,
   "app.closeToTray": true,
+  "app.list.highlightNewEpisodes": true,
+  "app.list.newEpisodesFirst": false,
+  "app.minimizeToTray": false,
+  "app.startWithWindows": false,
   "app.colorScheme": "system",
   "app.hideNsfw": true,
   "app.startInTray": false,
   "app.titleLanguage": "romaji",
   "library.folders": ["D:\\Anime"],
+  "library.minFileSize": 10,
+  "library.watchFolders": true,
   "meta.version": "0.1.0",
   "network.proxy.type": "http",
   "network.proxy.host": "",
@@ -140,6 +146,8 @@ let settings: Settings = {
   "track.detection.enabled": true,
   "track.detection.interval": 3000,
   "track.detection.streaming.enabled": false,
+  "track.notify.recognized": true,
+  "track.notify.notRecognized": true,
   "track.update.delay": 120,
   "track.update.libraryOnly": false,
   "track.update.pauseWhenUnfocused": false,
@@ -539,6 +547,16 @@ export function installMocks() {
         }
         case "profile_refresh":
           return accountStatus().find((x) => x.current);
+        case "library_available": {
+          // Every other anime being watched has its next episode on disk.
+          const map: Record<number, number[]> = {};
+          [...entries.values()]
+            .filter((e) => e.status === "Watching")
+            .forEach((e, i) => {
+              if (i % 2 === 0) map[e.animeId] = Array.from({ length: e.watchedEpisodes + 1 }, (_, n) => n + 1);
+            });
+          return map;
+        }
         case "torrents_get":
           return torrentFeed;
         case "torrents_check":

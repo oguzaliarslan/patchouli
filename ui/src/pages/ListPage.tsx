@@ -4,6 +4,8 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { api, errorMessage, type ListItem, type ListStatus } from "../api";
 import { Icon } from "../components/Icon";
 import { Poster } from "../components/Poster";
+import { Progress } from "../components/Progress";
+import { availability, useAvailable } from "../lib/available";
 import { useApp, type AppActions } from "../lib/context";
 import { withEpisodeWatched } from "../lib/entries";
 import {
@@ -92,6 +94,8 @@ export function ListPage() {
   const openMenu = useAnimeMenu();
   const language = settings?.["app.titleLanguage"] ?? "romaji";
   const hideNsfw = settings?.["app.hideNsfw"] ?? true;
+  const { data: available } = useAvailable();
+  const newFirst = (settings?.["app.list.highlightNewEpisodes"] ?? true) && (settings?.["app.list.newEpisodesFirst"] ?? false);
 
   const [status, setStatus] = usePref<ListStatus | "all">("list.status", "Watching");
   const [view, setView] = usePref<"table" | "cards">("list.view", "table");
@@ -149,14 +153,20 @@ export function ListPage() {
     const sorts = [sort, secondary, { column: "title" as Column, descending: false }].filter(
       (s): s is Sort => !!s,
     );
+    const hasNew = (i: ListItem) => (availability(i, available).next != null ? 1 : 0);
     return filtered.sort((a, b) => {
+      // Taiga v1's "display highlighted anime on top".
+      if (newFirst) {
+        const first = hasNew(b) - hasNew(a);
+        if (first) return first;
+      }
       for (const s of sorts) {
         const result = compare(a, b, s.column);
         if (result) return s.descending ? -result : result;
       }
       return 0;
     });
-  }, [visible, status, type, text, sort, secondary, language]);
+  }, [visible, status, type, text, sort, secondary, language, newFirst, available]);
 
   function onHeaderClick(column: Column, shift: boolean) {
     if (shift) {
@@ -349,6 +359,8 @@ function ListTable({
   onStep: (item: ListItem, delta: 1 | -1) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
+  const { data: available } = useAvailable();
+  const highlight = useSettings().data?.["app.list.highlightNewEpisodes"] ?? true;
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scroller.current,
@@ -403,6 +415,7 @@ function ListTable({
             const id = item.entry.animeId;
             const total = item.anime?.episodeCount ?? 0;
             const title = itemTitle(item, language);
+            const onDisk = availability(item, available);
             return (
               <div
                 key={id}
@@ -419,6 +432,11 @@ function ListTable({
                   <span className="title-ellipsis" title={title}>
                     {title}
                   </span>
+                  {highlight && onDisk.next != null && (
+                    <span className="badge ok" title={`Episode ${onDisk.next} is in your library`}>
+                      Ep {onDisk.next} on disk
+                    </span>
+                  )}
                   {item.entry.rewatching && <span className="badge">rewatching</span>}
                   {item.queued && <span className="badge accent">unsent</span>}
                 </div>
@@ -435,9 +453,7 @@ function ListTable({
                     −
                   </button>
                   <span className="progress-cell">
-                    <span className="progress">
-                      <span style={{ width: `${progressRatio(item) * 100}%` }} />
-                    </span>
+                    <Progress item={item} availability={onDisk} />
                     <span className="small">{episodesText(item.entry.watchedEpisodes, total)}</span>
                   </span>
                   <button
@@ -505,6 +521,8 @@ function ListCards({
 
   const perRow = Math.max(1, Math.floor((width + CARD_GAP) / (CARD_WIDTH + CARD_GAP)));
   const rowCount = Math.ceil(rows.length / perRow);
+  const { data: available } = useAvailable();
+  const highlight = useSettings().data?.["app.list.highlightNewEpisodes"] ?? true;
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scroller.current,
@@ -523,6 +541,7 @@ function ListCards({
           >
             {rows.slice(v.index * perRow, v.index * perRow + perRow).map((item) => {
               const title = itemTitle(item, language);
+              const onDisk = availability(item, available);
               return (
                 <button
                   key={item.entry.animeId}
@@ -531,15 +550,14 @@ function ListCards({
                   onContextMenu={(e) => onMenu(e, item)}
                 >
                   <Poster anime={item.anime} title={title} />
-                  <span className="progress flat">
-                    <span style={{ width: `${progressRatio(item) * 100}%` }} />
-                  </span>
+                  <Progress item={item} availability={onDisk} flat />
                   <span className="anime-card-title title-clamp">{title}</span>
                   <span className="muted small">
                     {episodesText(item.entry.watchedEpisodes, item.anime?.episodeCount)}
                     {item.entry.score > 0 && ` · ${formatScore(item.entry.score, scoreFormat)}`}
                     {item.queued && " · unsent"}
                   </span>
+                  {highlight && onDisk.next != null && <span className="badge ok">Ep {onDisk.next} on disk</span>}
                 </button>
               );
             })}

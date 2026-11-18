@@ -4,7 +4,15 @@ import { ContextMenu, type MenuState } from "./components/ContextMenu";
 import { Icon, type IconName } from "./components/Icon";
 import { AppContext, type AppActions, type Page } from "./lib/context";
 import { usePref } from "./lib/prefs";
-import { useBackendEvents, useCurrentAccount, useQueue, useSettings, useTracking } from "./lib/queries";
+import {
+  useBackendEvents,
+  useCurrentAccount,
+  useList,
+  useQueue,
+  useSettings,
+  useTorrents,
+  useTracking,
+} from "./lib/queries";
 import { useColorScheme } from "./lib/theme";
 import { HistoryPage } from "./pages/HistoryPage";
 import { HomePage } from "./pages/HomePage";
@@ -16,15 +24,30 @@ import { SeasonsPage } from "./pages/SeasonsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TorrentsPage } from "./pages/TorrentsPage";
 
-const NAV: { id: Page; label: string; icon: IconName }[] = [
-  { id: "home", label: "Home", icon: "home" },
-  { id: "list", label: "Anime List", icon: "list" },
-  { id: "search", label: "Search", icon: "search" },
-  { id: "seasons", label: "Seasons", icon: "calendar" },
-  { id: "history", label: "History", icon: "history" },
-  { id: "library", label: "Library", icon: "folder" },
-  { id: "torrents", label: "Torrents", icon: "download" },
-  { id: "profile", label: "Profile", icon: "person" },
+type NavItem = { id: Page; label: string; icon: IconName };
+
+const NAV: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Tracking",
+    items: [
+      { id: "home", label: "Home", icon: "home" },
+      { id: "list", label: "Anime List", icon: "list" },
+      { id: "history", label: "History", icon: "history" },
+    ],
+  },
+  {
+    label: "Discover & local",
+    items: [
+      { id: "search", label: "Search", icon: "search" },
+      { id: "seasons", label: "Seasons", icon: "calendar" },
+      { id: "library", label: "Library", icon: "folder" },
+      { id: "torrents", label: "Torrents", icon: "download" },
+    ],
+  },
+  {
+    label: "Account",
+    items: [{ id: "profile", label: "Profile", icon: "person" }],
+  },
 ];
 
 export default function App() {
@@ -37,6 +60,12 @@ export default function App() {
   const { data: settings } = useSettings();
   useColorScheme(settings?.["app.colorScheme"]);
   const sync = useBackendEvents();
+  const { data: list } = useList();
+  const { data: torrents } = useTorrents();
+  const counts: Partial<Record<Page, number>> = {
+    list: list?.length,
+    torrents: torrents?.items.filter((i) => i.state === "selected").length,
+  };
 
   const notify = useCallback((message: string) => {
     setToast(message);
@@ -68,9 +97,27 @@ export default function App() {
     <AppContext.Provider value={actions}>
       <div className="shell">
         <nav className="sidebar" aria-label="Main">
-          <div className="brand">Patchouli</div>
-          {NAV.map((item) => (
-            <NavButton key={item.id} item={item} active={page === item.id} onClick={() => setPage(item.id)} />
+          <div className="brand">
+            <span className="brand-mark" aria-hidden="true">
+              P
+            </span>
+            Patchouli
+          </div>
+          {NAV.map((group) => (
+            <div key={group.label} className="nav-group" role="group" aria-label={group.label}>
+              <span className="nav-group-label" aria-hidden="true">
+                {group.label}
+              </span>
+              {group.items.map((item) => (
+                <NavButton
+                  key={item.id}
+                  item={item}
+                  count={counts[item.id]}
+                  active={page === item.id}
+                  onClick={() => setPage(item.id)}
+                />
+              ))}
+            </div>
           ))}
           <div className="sidebar-spacer" />
           <NavButton
@@ -143,16 +190,19 @@ function DetectionStatus() {
 function NavButton({
   item,
   active,
+  count,
   onClick,
 }: {
-  item: { id: Page; label: string; icon: IconName };
+  item: NavItem;
   active: boolean;
+  count?: number;
   onClick: () => void;
 }) {
   return (
     <button className={active ? "nav-item active" : "nav-item"} aria-current={active ? "page" : undefined} onClick={onClick}>
       <Icon name={item.icon} />
       <span>{item.label}</span>
+      {!!count && <span className="nav-count">{count}</span>}
     </button>
   );
 }

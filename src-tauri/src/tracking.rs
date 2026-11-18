@@ -232,11 +232,86 @@ fn set_now_playing(app: &AppHandle, state: &AppState, playing: Option<(NowPlayin
         ),
         None => log::info!("Nothing playing"),
     }
+    if let Some((now, _)) = &playing {
+        notify_playing(app, state, now);
+    }
     let _ = app.emit(NOW_PLAYING_EVENT, playing.as_ref().map(|(n, _)| n));
     crate::sharing::schedule_update(app);
     let effects =
         lock(&state.tracker.session).on_media_changed(playing.map(|(_, c)| c), &DbLibrary(state));
     handle_effects(app, state, effects);
+}
+
+/// Taiga v1's "Now playing" balloon: the anime, episode and group when
+/// recognised, or the parsed title when not.
+pub fn notification_text(
+    now: &NowPlaying,
+    anime: Option<&Anime>,
+    title: Option<&str>,
+) -> (String, String) {
+    let episode = now.episodes.join("\u{2013}");
+    let group = now
+        .elements
+        .iter()
+        .find(|e| e.kind == ElementKind::ReleaseGroup)
+        .map(|e| e.value.as_str());
+    match (now.anime_id, title) {
+        (Some(_), Some(title)) => {
+            let mut line = String::new();
+            if !episode.is_empty() {
+                line.push_str(&format!("Episode {episode}"));
+                if let Some(total) = anime.map(|a| a.episode_count).filter(|&t| t > 0) {
+                    line.push_str(&format!("/{total}"));
+                }
+            }
+            if let Some(group) = group {
+                if !line.is_empty() {
+                    line.push(' ');
+                }
+                line.push_str(&format!("by {group}"));
+            }
+            let body = if line.is_empty() {
+                title.to_owned()
+            } else {
+                format!("{title}\n{line}")
+            };
+            ("Now playing".into(), body)
+        }
+        _ => {
+            let shown = if episode.is_empty() {
+                now.title.clone()
+            } else {
+                format!("{} #{episode}", now.title)
+            };
+            (
+                "Not in your list".into(),
+                format!("{shown}\nOpen Patchouli to see why it wasn't recognised."),
+            )
+        }
+    }
+}
+
+fn notify_playing(app: &AppHandle, state: &AppState, now: &NowPlaying) {
+    let settings = state.settings.get();
+    let anime = now.anime_id.and_then(|id| DbLibrary(state).anime(id));
+    let wanted = if now.anime_id.is_some() {
+        settings.notify_recognized
+    } else {
+        settings.notify_not_recognized && !now.title.is_empty()
+    };
+    if !wanted {
+        return;
+    }
+    let title = anime
+        .as_ref()
+        .map(|a| crate::sharing::preferred_title(a, state));
+    let (heading, body) = notification_text(now, anime.as_ref(), title.as_deref());
+    let _ = app
+        .notification()
+        .builder()
+        .title(heading)
+        .body(body)
+        .show();
 }
 
 fn handle_effects(app: &AppHandle, state: &AppState, effects: Vec<Effect>) {
@@ -325,4 +400,59 @@ pub fn update_cancel(app: AppHandle, state: State<'_, AppState>) -> CommandResul
     let effects = lock(&state.tracker.session).cancel(&DbLibrary(&state));
     handle_effects(&app, &state, effects);
     Ok(lock(&state.tracker.session).state())
+}
+
+#[cfg(test)]
+mod tests {
+    use patchouli_anitomy::{Element, ElementKind};
+
+    use super::*;
+
+    fn playing(anime_id: Option<i32>, episodes: &[&str], group: Option<&str>) -> NowPlaying {
+        NowPlaying {
+            player: "mpv".into(),
+            browser: false,
+            file: None,
+            title: "Sousou no Frieren".into(),
+            episodes: episodes.iter().map(|e| (*e).to_owned()).collect(),
+            anime_id,
+            elements: group
+                .map(|g| Element {
+                    kind: ElementKind::ReleaseGroup,
+                    value: g.into(),
+                    position: 0,
+                })
+                .into_iter()
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn notification_texts() {
+        let anime = Anime {
+            id: 1,
+            episode_count: 28,
+            ..Anime::default()
+        };
+        let now = playing(Some(1), &["5"], Some("SubsPlease"));
+        assert_eq!(
+            notification_text(&now, Some(&anime), Some("Frieren")),
+            (
+                "Now playing".into(),
+                "Frieren\nEpisode 5/28 by SubsPlease".into()
+            )
+        );
+        let movie = playing(Some(1), &[], None);
+        assert_eq!(
+            notification_text(&movie, None, Some("Frieren")).1,
+            "Frieren"
+        );
+        let unknown = playing(None, &["1", "2"], None);
+        let (heading, body) = notification_text(&unknown, None, None);
+        assert_eq!(heading, "Not in your list");
+        assert!(
+            body.starts_with("Sousou no Frieren #1\u{2013}2\n"),
+            "{body}"
+        );
+    }
 }

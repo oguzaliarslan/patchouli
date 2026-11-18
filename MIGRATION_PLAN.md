@@ -167,10 +167,11 @@ Each crate apart from `detect` (Windows parts) and `src-tauri` should be **pure 
 Estimates assume one experienced Rust developer. With a dedicated frontend developer, phases 3 and 6 can run in parallel with phases 2, 4 and 5.
 
 ### Phase 0: Decisions and setup (about 1 week)
-- [ ] Decide on licensing (GPL-3.0 port vs clean-room)
-- [ ] Pick a product name and app identifier. Register OAuth apps on AniList, MAL and Kitsu
-- [ ] Scaffold: `cargo` workspace, `create-tauri-app` (React-TS), CI (GitHub Actions: fmt, clippy, test, `tauri build` on windows-latest)
-- [ ] Vendor resources: `players.anisthesia`, `anime-relations.txt`, `gql/*.gql`, SVG icons
+- [x] Decide on licensing: GPL-3.0 port (`LICENSE`)
+- [x] Pick a product name: Patchouli
+- [ ] Register OAuth apps on AniList and MyAnimeList, and a Discord application (needs the owner's accounts)
+- [x] Scaffold: `cargo` workspace, Tauri + React-TS, CI (`.github/workflows/ci.yml`)
+- [x] Vendor resources: `players.anisthesia`, `anime-relations.txt`, `gql/*.gql`; an original app icon (`src-tauri/icons/app-icon.svg`)
 - **Exit:** an empty Tauri window builds in CI and produces an installer artifact
 
 ### Phase 1: Core domain and storage (1–2 weeks) ✅
@@ -190,7 +191,7 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 - [x] **Queue**: port of `sync/queue.cpp`, including dirty-field merge, `modifiedWhileProcessing`, reconcile with the remote entry, retry count and last error, 10 s debounce and 5 min retry. Fetching skips entries with unsent changes (Taiga could overwrite them)
 - [x] Auth via a loopback server (`http://localhost:47312/callback/<service>`). Tokens in Windows Credential Manager, split into chunks because an entry holds at most 1280 characters
 - [x] The local list belongs to one service (`meta.service`); logging in to the other asks before replacing it
-- [ ] Proxy support (`network.proxy.*`)
+- [x] Proxy support (`network.proxy.*`): one shared client (`patchouli_sync::http`) for syncing, logins, the webhook, torrents, data-file refresh and the updater; HTTP or SOCKS5 with login, applied when settings change; without a host, the Windows proxy. Tested against a local proxy (`crates/sync/tests/proxy.rs`) and in the app. The web view (posters) still uses the Windows proxy
 - **Exit:** integration tests against `wiremock` pass. Manual login and sync need registered client IDs (see README)
 
 ### Phase 3: UI foundation (3–4 weeks, can run in parallel) ✅
@@ -294,3 +295,27 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 1. Confirm the license approach and the frontend framework (React+TS recommended above).
 2. Register OAuth apps on AniList, MAL and Kitsu.
 3. Scaffold the workspace and CI (phase 0), then start phase 1 (`core` + `db`) and phase 4's `anitomy` port in parallel, since both are pure Rust and easy to test.
+
+### Taiga 1.x comparison
+
+Taiga 1.x is on the `master` branch of erengy/taiga (1.4.1, March 2024). Its `src/` is identical to the `src/v1` snapshot in `develop` that the phases above ported from (8 debug-only lines differ). These are the 1.x features Patchouli doesn't have yet, by value to users:
+
+**High**
+- [ ] **Streaming sites** (`track/media_stream.cpp`): match the browser's URL to a site (ADN, AnimeLab, ANN, Bilibili, Jellyfin, Plex, Roku Channel, Tubi, Veoh, VIZ, VRV, Wakanim, Yahoo View, YouTube) and take the title with that site's pattern; clean browser titles ("New Tab", " - Audio playing"); a switch per site. Patchouli parses any browser window title, so it can both miss episodes and match unrelated pages
+- [x] **Available episodes** (`src-tauri/src/available.rs`): the library is scanned a few seconds after start, every 30 minutes, and 5 s after files are added, renamed or removed in a watched folder (`notify`); files under 10 MB are skipped. The list and Home mark entries whose next episode is on disk, the progress bar shows the episodes on disk, and they can be listed first. Torrent filters and the Library page use the same scan. Imported from 1.x's `settings.xml`. Checked in the app: a copied-in episode was found 5 s later
+- [ ] **Ask before updating** (`account/update/asktoconfirm`, on by default in 1.x) and **update only the next episode** (`outofrange`). Patchouli asks only when an episode skips ahead
+- [x] **Recognition notifications**: "Now playing" with the anime, episode/total and group, or "Not in your list" with the parsed title; each can be turned off. ("Go to Now playing" isn't needed: Home shows it)
+- [x] **Start with Windows** (`tauri-plugin-autostart`, starts in the tray) and minimise to tray
+
+**Medium**
+- [ ] Announcement formats: 1.x's script language (`taiga/script.cpp`: `%title%`, `$if(...)`) for Discord and HTTP text; Discord options to show the group, elapsed time and username
+- [ ] Recognition: ignored strings (removed before parsing) and a switch for looking up parent folders
+- [ ] List: double-click and middle-click actions
+- [ ] Play episodes with a chosen player (`recognition/mediaplayers/launchpath`) instead of the default app
+- [ ] "Search torrents for this anime" in the anime menu, and user-defined external links (`program/general/externallinks`)
+- [ ] Seasons: group by (type, status…), view as tiles or a list, remember the last season
+- [ ] Stats: local data (poster cache, torrent files)
+- [ ] Kitsu (deferred since phase 2)
+
+**Not ported** (obsolete or not needed): mIRC and Twitter announcements, SSL revocation and connection-reuse switches, hiding the sidebar, the memory timer, translations
+

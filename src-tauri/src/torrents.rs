@@ -1,7 +1,7 @@
 //! Torrent feeds: checking, filtering and downloading (Taiga v1's Torrents
 //! page, `track/feed_aggregator.cpp`).
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -12,7 +12,6 @@ use patchouli_db::{anime_settings, list};
 use patchouli_feed::download::{self, SortBy};
 use patchouli_feed::{Archive, Feed, FeedItem, Library, State as ItemState};
 use patchouli_recognition::Recognizer;
-use patchouli_recognition::scanner;
 use patchouli_settings::{Settings, TorrentApp, TorrentNewAction, TorrentSortBy};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -25,20 +24,13 @@ use crate::error::{CommandError, CommandResult};
 /// Event carrying the examined [`Feed`].
 pub const TORRENTS_EVENT: &str = "torrents";
 const ARCHIVE_FILE: &str = "feed_archive.json";
-/// Library scans are reused this long for "episode available" conditions.
-const LIBRARY_TTL: Duration = Duration::from_secs(10 * 60);
-
-/// `(anime ID, episode)` pairs found in the library folders.
-type Available = Arc<HashSet<(i32, i32)>>;
 
 pub struct Torrents {
-    http: reqwest::Client,
     /// The last feed as fetched, before filtering, so filters can be rerun.
     raw: Mutex<Option<Feed>>,
     /// The last feed after filtering.
     feed: Mutex<Option<Feed>>,
     archive: Mutex<Archive>,
-    library: Mutex<Option<(Instant, Available)>>,
     last_check: Mutex<Option<Instant>>,
     busy: tokio::sync::Mutex<()>,
 }
@@ -46,15 +38,9 @@ pub struct Torrents {
 impl Torrents {
     pub fn new(data_dir: &Path) -> Self {
         Self {
-            http: reqwest::Client::builder()
-                .user_agent(concat!("Patchouli/", env!("CARGO_PKG_VERSION")))
-                .timeout(Duration::from_secs(60))
-                .build()
-                .unwrap_or_default(),
             raw: Mutex::new(None),
             feed: Mutex::new(None),
             archive: Mutex::new(Archive::load(data_dir.join(ARCHIVE_FILE))),
-            library: Mutex::new(None),
             last_check: Mutex::new(None),
             busy: tokio::sync::Mutex::new(()),
         }
@@ -69,7 +55,7 @@ fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 struct AppLibrary {
     recognizer: Arc<Recognizer>,
     entries: HashMap<i32, ListEntry>,
-    available: Arc<HashSet<(i32, i32)>>,
+    available: Arc<crate::available::EpisodeMap>,
 }
 
 impl Library for AppLibrary {
@@ -80,37 +66,10 @@ impl Library for AppLibrary {
         self.entries.get(&id).filter(|e| !e.pending_delete)
     }
     fn is_episode_available(&self, id: i32, episode: i32) -> bool {
-        self.available.contains(&(id, episode))
+        self.available
+            .get(&id)
+            .is_some_and(|e| e.contains(&episode))
     }
-}
-
-/// Episodes in the library folders, from a recent scan or a new one.
-async fn available_episodes(
-    state: &AppState,
-    recognizer: &Arc<Recognizer>,
-) -> CommandResult<Arc<HashSet<(i32, i32)>>> {
-    if let Some((time, set)) = lock(&state.torrents.library).as_ref()
-        && time.elapsed() < LIBRARY_TTL
-    {
-        return Ok(Arc::clone(set));
-    }
-    let folders = state.settings.get().library_folders;
-    let recognizer = Arc::clone(recognizer);
-    let scan =
-        tauri::async_runtime::spawn_blocking(move || scanner::scan_library(&folders, &recognizer))
-            .await?;
-    let set: HashSet<(i32, i32)> = scan
-        .anime
-        .iter()
-        .flat_map(|a| {
-            a.files
-                .iter()
-                .flat_map(move |f| f.episodes.iter().map(move |&e| (a.anime_id, e)))
-        })
-        .collect();
-    let set = Arc::new(set);
-    *lock(&state.torrents.library) = Some((Instant::now(), Arc::clone(&set)));
-    Ok(set)
 }
 
 /// Runs recognition and the filters on a copy of the fetched feed.
@@ -132,11 +91,15 @@ async fn examine(app: &AppHandle, state: &AppState, raw: &Feed) -> CommandResult
                     .iter()
                     .any(|c| c.element == patchouli_core::feed::Element::LocalEpisodeAvailable)
         });
-    let available = if needs_library && !settings.library_folders.is_empty() {
-        available_episodes(state, &recognizer).await?
-    } else {
-        Arc::default()
-    };
+    // The library index is filled a few seconds after start; scan now if
+    // a filter needs it before then.
+    if needs_library
+        && !settings.library_folders.is_empty()
+        && state.available.last_scan().is_none()
+    {
+        crate::available::rescan(app).await?;
+    }
+    let available = state.available.episodes();
     let library = AppLibrary {
         recognizer: Arc::clone(&recognizer),
         entries,
@@ -155,10 +118,8 @@ async fn examine(app: &AppHandle, state: &AppState, raw: &Feed) -> CommandResult
     Ok(feed)
 }
 
-async fn fetch(state: &AppState, url: &str) -> CommandResult<Feed> {
-    let response = state
-        .torrents
-        .http
+async fn fetch(url: &str) -> CommandResult<Feed> {
+    let response = patchouli_sync::http::client()
         .get(url)
         .header(reqwest::header::ACCEPT, "application/rss+xml, */*")
         .send()
@@ -191,7 +152,7 @@ async fn check(app: &AppHandle, state: &AppState, url: Option<String>) -> Comman
             "Enter an http:// or https:// feed address.",
         ));
     }
-    let raw = fetch(state, url.trim()).await?;
+    let raw = fetch(url.trim()).await?;
     *lock(&state.torrents.last_check) = Some(Instant::now());
     *lock(&state.torrents.raw) = Some(raw.clone());
     let feed = examine(app, state, &raw).await?;
@@ -415,9 +376,7 @@ async fn download_item(
             folder.as_deref(),
         );
     }
-    let response = state
-        .torrents
-        .http
+    let response = patchouli_sync::http::client()
         .get(&item.link)
         .header(reqwest::header::ACCEPT, "application/x-bittorrent, */*")
         .send()

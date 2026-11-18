@@ -15,7 +15,7 @@ mod client;
 pub mod credentials;
 mod engine;
 mod error;
-mod http;
+pub mod http;
 pub mod myanimelist;
 pub mod oauth;
 mod search;

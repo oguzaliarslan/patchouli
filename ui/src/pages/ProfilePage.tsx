@@ -110,24 +110,24 @@ export function ProfilePage() {
           <div className="stat-tiles">
             <div className="stat-tile">
               <span className="stat-value">{stats.animeCount}</span>
-              <span className="muted small">anime in list</span>
+              <span className="muted small">Anime in list</span>
             </div>
             <div className="stat-tile">
               <span className="stat-value">{stats.episodeCount.toLocaleString()}</span>
-              <span className="muted small">episodes watched</span>
+              <span className="muted small">Episodes watched</span>
             </div>
             <div className="stat-tile">
               <span className="stat-value">{formatDuration(stats.secondsWatched)}</span>
-              <span className="muted small">spent watching</span>
+              <span className="muted small">Time watched</span>
             </div>
             <div className="stat-tile">
               <span className="stat-value">{formatDuration(stats.secondsPlanned)}</span>
-              <span className="muted small">left to watch</span>
+              <span className="muted small">Left to watch</span>
             </div>
             <div className="stat-tile">
               <span className="stat-value">{scored ? formatScore(Math.round(stats.meanScore), format) : "—"}</span>
               <span className="muted small">
-                mean score{scored ? ` · ±${(stats.scoreDeviation / 10).toFixed(1)}` : ""}
+                Mean score{scored ? ` · ±${(stats.scoreDeviation / 10).toFixed(1)}` : ""}
               </span>
             </div>
           </div>

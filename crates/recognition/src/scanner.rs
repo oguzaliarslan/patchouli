@@ -87,8 +87,13 @@ pub struct LibraryScan {
     pub files_scanned: usize,
 }
 
-/// Recognises every video file in the library folders.
-pub fn scan_library(library_folders: &[String], recognizer: &Recognizer) -> LibraryScan {
+/// Recognises every video file in the library folders. Files smaller than
+/// `min_file_size` bytes (samples, previews) are skipped, as in Taiga.
+pub fn scan_library(
+    library_folders: &[String],
+    recognizer: &Recognizer,
+    min_file_size: u64,
+) -> LibraryScan {
     let mut by_anime: BTreeMap<i32, Vec<LibraryFile>> = BTreeMap::new();
     let mut scan = LibraryScan::default();
     for folder in library_folders {
@@ -99,6 +104,9 @@ pub fn scan_library(library_folders: &[String], recognizer: &Recognizer) -> Libr
         {
             let mut episode = parse_file(entry.path(), library_folders);
             if !episode.is_video_file() {
+                continue;
+            }
+            if min_file_size > 0 && entry.metadata().map_or(0, |m| m.len()) < min_file_size {
                 continue;
             }
             scan.files_scanned += 1;
@@ -186,8 +194,10 @@ mod tests {
         assert_eq!(find_episode(&root, 7, 3, &recognizer, &folders), None);
         assert_eq!(find_folder(&root, 7, &recognizer), Some(show.clone()));
 
-        let scan = scan_library(&folders, &recognizer);
+        let scan = scan_library(&folders, &recognizer, 0);
         assert_eq!(scan.files_scanned, 3);
+        // The test files are empty, so a size limit skips them all.
+        assert_eq!(scan_library(&folders, &recognizer, 1).files_scanned, 0);
         assert_eq!(scan.anime.len(), 1);
         assert_eq!(scan.anime[0].files.len(), 2);
         assert_eq!(scan.anime[0].files[0].episodes, [1]);

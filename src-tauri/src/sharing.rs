@@ -38,7 +38,6 @@ pub fn discord_app_id() -> Option<String> {
 
 pub struct Sharing {
     presence: Option<Presence>,
-    http: reqwest::Client,
     /// The last `playing` event sent: anime and episode.
     playing: Mutex<Option<(i32, i32)>>,
     /// The file being shown on Discord, and since when.
@@ -59,7 +58,6 @@ impl Sharing {
         };
         let sharing = Self {
             presence,
-            http: reqwest::Client::new(),
             playing: Mutex::new(None),
             discord_since: Mutex::new(None),
             generation: AtomicU64::new(0),
@@ -294,7 +292,7 @@ fn send_event(app: &AppHandle, state: &AppState, kind: EventType, anime_id: i32,
         episode,
     };
     let headers = webhook::parse_headers(&settings.webhook_headers);
-    let http = state.sharing.http.clone();
+    let http = patchouli_sync::http::client();
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let result = webhook::send(&http, url, &headers, &event).await;

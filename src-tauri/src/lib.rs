@@ -1,3 +1,4 @@
+mod available;
 mod credentials;
 mod error;
 mod export;
@@ -50,6 +51,7 @@ pub(crate) struct AppState {
     tracker: Tracker,
     sharing: Sharing,
     torrents: torrents::Torrents,
+    available: available::Available,
     updates: update::Updates,
     /// Held while a login is in progress.
     login: tokio::sync::Mutex<()>,
@@ -127,6 +129,24 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         {
             tracking::settings_changed(&handle, new);
         }
+        if keys.iter().any(|k| k.starts_with("network.proxy.")) {
+            apply_proxy(new);
+            // The sessions hold clients made with the old proxy.
+            if let Some(state) = handle.try_state::<AppState>() {
+                sync::restore_session(&state);
+            }
+        }
+        if keys.contains("app.startWithWindows") {
+            window::apply_autostart(&handle, new.app_start_with_windows);
+        }
+        if handle.try_state::<AppState>().is_some() {
+            if keys.contains("library.folders") || keys.contains("library.watchFolders") {
+                available::rewatch(&handle);
+            }
+            if keys.contains("library.folders") || keys.contains("library.minFileSize") {
+                available::schedule(&handle);
+            }
+        }
         if keys.iter().any(|k| k.starts_with("torrents.filter"))
             && handle.try_state::<AppState>().is_some()
         {
@@ -134,6 +154,8 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         }
         let _ = handle.emit(SETTINGS_CHANGED, keys);
     });
+
+    apply_proxy(&settings.get());
 
     let players = resources::players(&data_dir.path);
     let tracker = Tracker::new(players, &settings.get());
@@ -154,6 +176,8 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
             sharing::schedule_update(&handle);
             if handle.try_state::<AppState>().is_some() {
                 torrents::refilter(&handle);
+                // New anime in the list can match more files.
+                available::schedule(&handle);
             }
         }
         if let patchouli_sync::SyncEvent::Error { message, .. } = &event {
@@ -176,9 +200,33 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         tracker,
         sharing,
         torrents,
+        available: available::Available::default(),
         updates: update::Updates::default(),
         login: tokio::sync::Mutex::new(()),
     })
+}
+
+/// Uses the proxy from settings for every request; without one, the system
+/// proxy. The web view (posters) always uses the system proxy.
+fn apply_proxy(settings: &Settings) {
+    use patchouli_sync::http::{ProxyConfig, ProxyKind};
+    let host = settings.proxy_host.trim();
+    let proxy = (!host.is_empty()).then(|| ProxyConfig {
+        kind: match settings.proxy_type {
+            patchouli_settings::ProxyType::Http => ProxyKind::Http,
+            patchouli_settings::ProxyType::Socks5 => ProxyKind::Socks5,
+        },
+        host: host.to_owned(),
+        port: u16::try_from(settings.proxy_port).ok().filter(|&p| p > 0),
+        username: settings.proxy_username.clone(),
+        password: settings.proxy_password.clone(),
+    });
+    match proxy.as_ref().and_then(ProxyConfig::url) {
+        Some(url) => log::info!("Using proxy {url}"),
+        None if !host.is_empty() => log::warn!("Ignoring invalid proxy host \"{host}\""),
+        None => {}
+    }
+    patchouli_sync::http::set_proxy(proxy);
 }
 
 /// Restores the login, syncs once, and keeps sending queued changes.
@@ -203,6 +251,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .args([window::AUTOSTART_ARG])
+                .build(),
+        )
         // Visibility is decided by "start in tray", not restored.
         .plugin(
             tauri_plugin_window_state::Builder::default()
@@ -216,9 +269,11 @@ pub fn run() {
             start_sync(app.handle(), &state);
             window::create_tray(app.handle())?;
             window::show_on_start(app.handle(), &state);
+            window::apply_autostart(app.handle(), state.settings.get().app_start_with_windows);
             app.manage(state);
             tracking::start(app.handle());
             torrents::start(app.handle());
+            available::start(app.handle());
             update::start(app.handle());
             resources::start(app.handle());
             Ok(())
@@ -269,6 +324,7 @@ pub fn run() {
             torrents::torrents_archive_info,
             torrents::torrents_archive_clear,
             torrents::torrents_download,
+            available::library_available,
             update::update_status,
             update::update_check,
             update::update_install,

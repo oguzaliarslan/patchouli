@@ -1,7 +1,9 @@
 import { NowPlayingCard } from "../components/NowPlaying";
 import { Poster } from "../components/Poster";
+import { Progress } from "../components/Progress";
+import { availability, useAvailable } from "../lib/available";
 import { useApp } from "../lib/context";
-import { episodesText, itemTitle, progressRatio, relativeTime } from "../lib/format";
+import { episodesText, itemTitle, relativeTime } from "../lib/format";
 import { useAnimeMenu } from "../lib/useAnimeMenu";
 import { useCurrentAccount, useList, useSettings, useTaigaDetection, type SyncState } from "../lib/queries";
 import { dismissTaigaImport, importFromTaiga } from "../lib/taiga";
@@ -12,6 +14,8 @@ export function HomePage({ sync }: { sync: SyncState }) {
   const { data: items = [] } = useList();
   const { connected, account } = useCurrentAccount();
   const openMenu = useAnimeMenu();
+  const { data: available } = useAvailable();
+  const highlight = settings?.["app.list.highlightNewEpisodes"] ?? true;
   const { data: taiga } = useTaigaDetection();
   const language = settings?.["app.titleLanguage"] ?? "romaji";
 
@@ -82,9 +86,10 @@ export function HomePage({ sync }: { sync: SyncState }) {
                     Episode {episodesText(item.entry.watchedEpisodes, item.anime?.episodeCount)} ·{" "}
                     {relativeTime(item.entry.lastUpdated)}
                   </span>
-                  <span className="progress">
-                    <span style={{ width: `${progressRatio(item) * 100}%` }} />
-                  </span>
+                  {highlight && availability(item, available).next != null && (
+                    <span className="small on-disk">Episode {availability(item, available).next} is on disk</span>
+                  )}
+                  <Progress item={item} availability={availability(item, available)} />
                 </span>
               </button>
             );
