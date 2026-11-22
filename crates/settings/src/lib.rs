@@ -153,6 +153,9 @@ pub struct Settings {
 
     #[serde(rename = "sync.enabled")]
     pub sync_enabled: bool,
+    /// Copy list changes to the other service too.
+    #[serde(rename = "sync.mirror.enabled")]
+    pub sync_mirror: bool,
     #[serde(rename = "sync.service")]
     pub sync_service: ServiceId,
 
@@ -265,6 +268,7 @@ impl Default for Settings {
             webhook_headers: Vec::new(),
             webhook_url: String::new(),
             sync_enabled: true,
+            sync_mirror: false,
             sync_service: ServiceId::AniList,
             disabled_players: Vec::new(),
             detection_enabled: true,

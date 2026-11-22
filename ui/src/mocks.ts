@@ -142,6 +142,7 @@ let settings: Settings = {
   "sharing.webhook.headers": [],
   "sharing.webhook.url": "",
   "sync.enabled": true,
+  "sync.mirror.enabled": false,
   "sync.service": "anilist",
   "track.detection.disabledPlayers": [],
   "track.detection.enabled": true,
@@ -267,7 +268,27 @@ function accountStatus(): AccountStatus[] {
     profileUrl: accounts[service] ? `https://anilist.co/user/${accounts[service]}/` : null,
     current: settings["sync.service"] === service,
     connected: settings["sync.service"] === service && !!accounts[service],
+    mirror: settings["sync.mirror.enabled"] && settings["sync.service"] !== service,
+    mirrorConnected: settings["sync.mirror.enabled"] && settings["sync.service"] !== service && !!accounts[service],
   }));
+}
+
+/** Sample changes waiting to be copied to the second service. */
+let mirrorFailed = [
+  { animeId: 7, title: "Sample Anime With No Match", error: "Not found on MyAnimeList." },
+];
+let mirrorPending = 0;
+
+function mirrorStatus() {
+  const service = settings["sync.service"] === "anilist" ? "myanimelist" : "anilist";
+  return {
+    enabled: settings["sync.mirror.enabled"],
+    service,
+    name: service === "anilist" ? "AniList" : "MyAnimeList",
+    connected: !!accounts[service],
+    pending: mirrorPending + mirrorFailed.length,
+    failed: mirrorFailed,
+  };
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -343,11 +364,27 @@ export function installMocks() {
           await sleep(1200);
           const service = a.service as "anilist" | "myanimelist";
           accounts[service] = "sample-user";
-          settings = { ...settings, "sync.service": service };
+          settings = a.mirror
+            ? { ...settings, "sync.mirror.enabled": true }
+            : { ...settings, "sync.service": service };
           return accountStatus().find((s) => s.service === service);
+        }
+        case "mirror_status":
+          return mirrorStatus();
+        case "mirror_copy_all":
+          mirrorPending = listItems().length;
+          setTimeout(() => {
+            mirrorPending = 0;
+          }, 5000);
+          return mirrorPending;
+        case "mirror_dismiss_failed": {
+          const count = mirrorFailed.length;
+          mirrorFailed = [];
+          return count;
         }
         case "account_logout":
           accounts[a.service as "anilist" | "myanimelist"] = null;
+          if (a.service !== settings["sync.service"]) settings = { ...settings, "sync.mirror.enabled": false };
           return accountStatus().find((s) => s.service === a.service);
         case "sync_now":
           await sleep(1500);

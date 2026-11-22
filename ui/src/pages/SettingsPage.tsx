@@ -167,9 +167,15 @@ function AccountsSection({ settings, change }: SectionProps) {
     }
   };
 
-  async function login(account: AccountStatus) {
+  async function login(account: AccountStatus, mirror = false) {
     setBusy(account.service);
     try {
+      if (mirror) {
+        await api.login(account.service, false, true);
+        app.notify(`Logged in to ${account.name}. Changes to your list are copied there now.`);
+        await offerCopyAll(account.name, app);
+        return;
+      }
       try {
         await api.login(account.service);
       } catch (e) {
@@ -206,39 +212,130 @@ function AccountsSection({ settings, change }: SectionProps) {
         onChange={(v) => change("sync.enabled", v)}
       />
       <div className="account-list">
-        {accounts.map((a) => (
-          <div key={a.service} className="account">
-            <div>
-              <strong>{a.name}</strong>
-              {a.current && <span className="badge accent">current</span>}
-              <div className="muted small">
-                {!a.configured
-                  ? "No client ID configured (see README)."
-                  : a.username
-                    ? `Logged in as ${a.username}${a.current && !a.connected ? " (session not active)" : ""}`
-                    : "Not logged in"}
+        {accounts.map((a) => {
+          const inactive = (a.current && !a.connected) || (a.mirror && !a.mirrorConnected);
+          const waiting = busy === a.service;
+          return (
+            <div key={a.service} className="account">
+              <div>
+                <strong>{a.name}</strong>
+                {a.current && <span className="badge accent">main list</span>}
+                {a.mirror && <span className="badge">copy</span>}
+                <div className="muted small">
+                  {!a.configured
+                    ? "No client ID configured (see README)."
+                    : a.username
+                      ? `Logged in as ${a.username}${inactive ? " (session not active)" : ""}${a.mirror ? " · changes are copied here" : ""}`
+                      : "Not logged in"}
+                </div>
               </div>
-            </div>
-            {a.username ? (
               <span className="inline">
-                <button disabled={busy !== null || !a.configured} onClick={() => void login(a)}>
-                  Log in again
-                </button>
-                <button onClick={() => void logout(a)}>Log out</button>
+                {!a.current && a.configured && !a.mirror && (
+                  <button
+                    className={a.username ? undefined : "primary"}
+                    disabled={busy !== null}
+                    onClick={() => (a.username ? change("sync.mirror.enabled", true) : void login(a, true))}
+                  >
+                    {waiting ? "Waiting for browser…" : "Copy changes here"}
+                  </button>
+                )}
+                {a.mirror && <button onClick={() => change("sync.mirror.enabled", false)}>Stop copying</button>}
+                {a.current ? (
+                  <button
+                    className={a.username ? undefined : "primary"}
+                    disabled={busy !== null || !a.configured}
+                    onClick={() => void login(a)}
+                  >
+                    {waiting ? "Waiting for browser…" : a.username ? "Log in again" : "Log in"}
+                  </button>
+                ) : (
+                  <button disabled={busy !== null || !a.configured} onClick={() => void login(a)}>
+                    Use as main list…
+                  </button>
+                )}
+                {a.username && <button onClick={() => void logout(a)}>Log out</button>}
               </span>
-            ) : (
-              <button className="primary" disabled={!a.configured || busy !== null} onClick={() => void login(a)}>
-                {busy === a.service ? "Waiting for browser…" : "Log in"}
-              </button>
-            )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
       <p className="muted small">
-        Logging in opens the service in your browser. Your list belongs to one service at a time;
-        logging in to the other one replaces it after asking.
+        Logging in opens the service in your browser. Your list comes from the main service. You can copy every
+        change to the other service too; using it as your main list instead replaces your list after asking.
       </p>
+      <MirrorPanel />
     </section>
+  );
+}
+
+/** Asks whether to send the whole list to the mirror once. */
+async function offerCopyAll(name: string, app?: ReturnType<typeof useApp>) {
+  const ok = await confirmAction(
+    `Copy your whole list to ${name} now? For anime in your list, what's on ${name} is replaced with your ` +
+      `main list. Anime that are only on ${name} are left alone. Large lists take a while.`,
+    `Copy list to ${name}`,
+    "Copy list",
+  );
+  if (!ok) return;
+  const count = await api.mirrorCopyAll();
+  void queryClient.invalidateQueries({ queryKey: keys.mirror });
+  app?.notify(`Copying ${count} entries to ${name}.`);
+}
+
+function MirrorPanel() {
+  const app = useApp();
+  const { data: status } = useQuery({ queryKey: keys.mirror, queryFn: api.mirrorStatus, refetchInterval: 15_000 });
+  const dismiss = useMutation({
+    mutationFn: api.mirrorDismissFailed,
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: keys.mirror }),
+  });
+  if (!status?.enabled) return null;
+  const waiting = status.pending - status.failed.length;
+  const SHOWN = 20;
+
+  return (
+    <div className="mirror-panel">
+      <h3>Copying to {status.name}</h3>
+      <p className="muted">
+        {waiting > 0
+          ? `${waiting} change${waiting === 1 ? "" : "s"} waiting to be copied.`
+          : "Everything has been copied."}
+        {!status.connected && ` Log in to ${status.name} to send changes.`}
+      </p>
+      {status.failed.length > 0 && (
+        <>
+          <p>
+            {status.failed.length} couldn't be copied. They're tried again every few minutes until you dismiss them.
+          </p>
+          <ul className="mirror-failed">
+            {status.failed.slice(0, SHOWN).map((f) => (
+              <li key={f.animeId}>
+                <button className="link" onClick={() => app.openAnime(f.animeId)}>
+                  {f.title}
+                </button>
+                <span className="muted small">{f.error}</span>
+              </li>
+            ))}
+          </ul>
+          {status.failed.length > SHOWN && (
+            <p className="muted small">…and {status.failed.length - SHOWN} more.</p>
+          )}
+        </>
+      )}
+      <span className="inline">
+        <button
+          disabled={!status.connected}
+          onClick={() => void offerCopyAll(status.name, app).catch((e) => app.notify(errorMessage(e)))}
+        >
+          Copy whole list now…
+        </button>
+        {status.failed.length > 0 && (
+          <button disabled={dismiss.isPending} onClick={() => dismiss.mutate()}>
+            Dismiss failed
+          </button>
+        )}
+      </span>
+    </div>
   );
 }
 

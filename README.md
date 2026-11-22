@@ -15,6 +15,7 @@ If you're coming from Taiga, use **Settings ? Advanced ? Import from Taiga** to 
 ## What else it does
 
 - See when the next episode of each show you're watching airs, and get a notification when it does.
+- Keep both an AniList and a MyAnimeList list: changes to your main list are copied to the other one.
 - Browse seasonal anime and see your watch history and list statistics.
 - Check torrent RSS feeds and filter releases against your list.
 - Show what you're watching on Discord or send playback events to a webhook.

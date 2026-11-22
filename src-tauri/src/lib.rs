@@ -131,6 +131,11 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         {
             tracking::settings_changed(&handle, new);
         }
+        if keys.contains("sync.mirror.enabled") {
+            if let Some(state) = handle.try_state::<AppState>() {
+                sync::restore_mirror(&state);
+            }
+        }
         if keys.iter().any(|k| k.starts_with("network.proxy.")) {
             apply_proxy(new);
             // The sessions hold clients made with the old proxy.
@@ -295,6 +300,9 @@ pub fn run() {
             sync::list_save_entry,
             sync::list_remove_entry,
             sync::queue_get,
+            sync::mirror_status,
+            sync::mirror_copy_all,
+            sync::mirror_dismiss_failed,
             sync::anime_search,
             library::anime_get,
             library::anime_refresh,

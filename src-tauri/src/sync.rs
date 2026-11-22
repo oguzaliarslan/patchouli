@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use patchouli_core::{Anime, ListEntry, QueueItem, ServiceId};
+use patchouli_db::queue::mirror as mirror_queue;
 use patchouli_db::{anime, list, meta, queue};
 use patchouli_sync::anilist::AniList;
 use patchouli_sync::myanimelist::MyAnimeList;
@@ -43,20 +44,45 @@ pub fn make_client(
     }
 }
 
-/// Restores the session for the selected service, if its account and tokens
-/// are saved.
-pub fn restore_session(state: &AppState) {
-    let service = state.settings.get().sync_service;
-    let Some(account) = state.accounts.get(service) else {
-        return;
-    };
-    let Ok(Some(credentials)) = state.credentials.load(service) else {
-        return;
-    };
-    let store: Arc<dyn CredentialStore> = state.credentials.clone();
-    if let Ok(client) = make_client(service, credentials, &state.oauth, store) {
-        state.sync.set_session(Some((client, account)));
+/// The service changes are copied to: the one that isn't the main list.
+pub fn mirror_service(primary: ServiceId) -> ServiceId {
+    match primary {
+        ServiceId::MyAnimeList => ServiceId::AniList,
+        _ => ServiceId::MyAnimeList,
     }
+}
+
+/// A client for `service` from its saved account and tokens.
+fn saved_session(
+    state: &AppState,
+    service: ServiceId,
+) -> Option<(Client, patchouli_sync::Account)> {
+    let account = state.accounts.get(service)?;
+    let credentials = state.credentials.load(service).ok()??;
+    let store: Arc<dyn CredentialStore> = state.credentials.clone();
+    let client = make_client(service, credentials, &state.oauth, store).ok()?;
+    Some((client, account))
+}
+
+/// Restores the session for the selected service, and for the service changes
+/// are copied to, if their accounts and tokens are saved.
+pub fn restore_session(state: &AppState) {
+    let settings = state.settings.get();
+    if let Some(session) = saved_session(state, settings.sync_service) {
+        state.sync.set_session(Some(session));
+    }
+    restore_mirror(state);
+}
+
+/// Applies the mirroring setting and logs in to the mirror service.
+pub fn restore_mirror(state: &AppState) {
+    let settings = state.settings.get();
+    state.sync.set_mirroring(settings.sync_mirror);
+    let session = settings
+        .sync_mirror
+        .then(|| saved_session(state, mirror_service(settings.sync_service)))
+        .flatten();
+    state.sync.set_mirror_session(session);
 }
 
 /// Runs a full sync in the background, reporting failure as a sync event.
@@ -93,10 +119,16 @@ pub struct AccountStatus {
     current: bool,
     /// Logged in with a working session.
     connected: bool,
+    /// Changes to the main list are copied to this service.
+    mirror: bool,
+    /// …and its session works.
+    mirror_connected: bool,
 }
 
 fn status(state: &AppState, service: ServiceId) -> AccountStatus {
-    let current = state.settings.get().sync_service == service;
+    let settings = state.settings.get();
+    let current = settings.sync_service == service;
+    let mirror = settings.sync_mirror && mirror_service(settings.sync_service) == service;
     let account = state.accounts.get(service);
     AccountStatus {
         service,
@@ -119,6 +151,12 @@ fn status(state: &AppState, service: ServiceId) -> AccountStatus {
                 .sync
                 .session()
                 .is_some_and(|(client, _)| client.service() == service),
+        mirror,
+        mirror_connected: mirror
+            && state
+                .sync
+                .mirror_session()
+                .is_some_and(|(client, _)| client.service() == service),
     }
 }
 
@@ -130,17 +168,43 @@ pub fn accounts_get(state: State<'_, AppState>) -> Vec<AccountStatus> {
 /// Logs in through the browser. If the local list belongs to another service,
 /// fails with code `replace-local-data` unless `replace_local` is set, in which
 /// case the local list is replaced once login succeeds.
+///
+/// With `mirror`, logs in to the service that isn't the main list and starts
+/// copying changes to it; the local list is kept.
 #[tauri::command]
 pub async fn account_login(
     app: AppHandle,
     state: State<'_, AppState>,
     service: ServiceId,
     replace_local: bool,
+    mirror: Option<bool>,
 ) -> CommandResult<AccountStatus> {
     let _login = state
         .login
         .try_lock()
         .map_err(|_| CommandError::new("A login is already in progress."))?;
+
+    if mirror.unwrap_or(false) {
+        if state.settings.get().sync_service == service {
+            return Err(CommandError::new(format!(
+                "{} is your main list. Changes are copied to the other service.",
+                service.name()
+            )));
+        }
+        let login = PendingLogin::start(&state.oauth, service).await?;
+        app.opener()
+            .open_url(login.authorize_url(), None::<&str>)
+            .map_err(|e| CommandError::new(format!("Couldn't open the browser: {e}")))?;
+        let credentials = login.finish().await?;
+        let store: Arc<dyn CredentialStore> = state.credentials.clone();
+        let client = make_client(service, credentials.clone(), &state.oauth, store)?;
+        let account = client.user().await?;
+        state.credentials.save(service, &credentials)?;
+        state.accounts.set(service, account)?;
+        state.settings.update(|s| s.sync_mirror = true)?;
+        restore_mirror(&state);
+        return Ok(status(&state, service));
+    }
 
     let owner = {
         let db = state.db.lock()?;
@@ -179,13 +243,20 @@ pub async fn account_login(
         }
         meta::set(&db, META_SERVICE, service.slug())?;
     }
+    {
+        // IDs in the mirror queue belong to the old main service.
+        let db = state.db.lock()?;
+        mirror_queue::clear(&db)?;
+    }
     state.settings.update(|s| s.sync_service = service)?;
     state.sync.set_session(Some((client, account)));
+    restore_mirror(&state);
     spawn_synchronize(&app, state.sync.clone());
     Ok(status(&state, service))
 }
 
-/// Forgets the tokens and account. The local list is kept.
+/// Forgets the tokens and account. The local list is kept. Logging out of the
+/// service changes are copied to stops copying.
 #[tauri::command]
 pub fn account_logout(
     state: State<'_, AppState>,
@@ -193,6 +264,19 @@ pub fn account_logout(
 ) -> CommandResult<AccountStatus> {
     state.credentials.delete(service)?;
     state.accounts.remove(service)?;
+    let settings = state.settings.get();
+    if settings.sync_mirror && mirror_service(settings.sync_service) == service {
+        state.settings.update(|s| s.sync_mirror = false)?;
+        let db = state.db.lock()?;
+        mirror_queue::clear(&db)?;
+    }
+    if state
+        .sync
+        .mirror_session()
+        .is_some_and(|(client, _)| client.service() == service)
+    {
+        state.sync.set_mirror_session(None);
+    }
     if state
         .sync
         .session()
@@ -262,6 +346,75 @@ pub fn list_save_entry(state: State<'_, AppState>, entry: ListEntry) -> CommandR
 #[tauri::command]
 pub fn list_remove_entry(state: State<'_, AppState>, anime_id: i32) -> CommandResult<bool> {
     Ok(state.sync.remove_entry(anime_id)?)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MirrorFailure {
+    anime_id: i32,
+    title: String,
+    error: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MirrorStatus {
+    enabled: bool,
+    service: ServiceId,
+    name: &'static str,
+    connected: bool,
+    /// Changes waiting to be copied, including failed ones.
+    pending: usize,
+    failed: Vec<MirrorFailure>,
+}
+
+#[tauri::command]
+pub fn mirror_status(state: State<'_, AppState>) -> CommandResult<MirrorStatus> {
+    let settings = state.settings.get();
+    let service = mirror_service(settings.sync_service);
+    let db = state.db.lock()?;
+    let items = mirror_queue::all(&db)?;
+    let mut titles = crate::library::display_titles(&db)?;
+    let failed = items
+        .iter()
+        .filter_map(|item| {
+            let error = item.last_error.clone()?;
+            let title = titles.remove(&item.anime_id).unwrap_or_else(|| {
+                anime::get(&db, item.anime_id).ok().flatten().map_or_else(
+                    || format!("#{}", item.anime_id),
+                    |a| crate::sharing::preferred_title(&a, &state),
+                )
+            });
+            Some(MirrorFailure {
+                anime_id: item.anime_id,
+                title,
+                error,
+            })
+        })
+        .collect();
+    Ok(MirrorStatus {
+        enabled: settings.sync_mirror,
+        service,
+        name: service.name(),
+        connected: state
+            .sync
+            .mirror_session()
+            .is_some_and(|(client, _)| client.service() == service),
+        pending: items.len(),
+        failed,
+    })
+}
+
+/// Queues the whole list to be copied. Returns how many entries.
+#[tauri::command]
+pub fn mirror_copy_all(state: State<'_, AppState>) -> CommandResult<usize> {
+    Ok(state.sync.mirror_all()?)
+}
+
+/// Forgets changes that couldn't be copied.
+#[tauri::command]
+pub fn mirror_dismiss_failed(state: State<'_, AppState>) -> CommandResult<usize> {
+    Ok(state.sync.mirror_dismiss_failed()?)
 }
 
 #[tauri::command]

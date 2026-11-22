@@ -18,6 +18,8 @@ export const keys = {
   accounts: ["accounts"] as const,
   list: ["list"] as const,
   queue: ["queue"] as const,
+  /** Under `queue`, so queue events refresh it. */
+  mirror: ["queue", "mirror"] as const,
   history: ["history"] as const,
   info: ["info"] as const,
   anime: (id: number) => ["anime", id] as const,
@@ -153,7 +155,8 @@ export function useBackendEvents(): SyncState {
     const available = api.onLibraryAvailable((map) => queryClient.setQueryData(keys.available, map));
     const settings = api.onSettingsChanged((changed) => {
       void queryClient.invalidateQueries({ queryKey: keys.settings });
-      if (changed.includes("sync.service")) {
+      if (changed.includes("sync.service") || changed.includes("sync.mirror.enabled")) {
+        void queryClient.invalidateQueries({ queryKey: keys.mirror });
         void queryClient.invalidateQueries({ queryKey: keys.accounts });
       }
     });

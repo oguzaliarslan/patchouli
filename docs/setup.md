@@ -19,7 +19,9 @@ npm run dev
 
 `TRACKER_OAUTH_PORT` changes the redirect port (47312 by default); the redirect URLs registered with the services must match it. No client secrets are needed: AniList uses the implicit grant and MyAnimeList uses PKCE.
 
-Tokens are kept in Windows Credential Manager (under `app.tracker.desktop`), not in the data folder. AniList and MyAnimeList use different anime IDs, so the local list belongs to one service at a time; logging in to the other one asks before replacing it.
+Tokens are kept in Windows Credential Manager (under `app.tracker.desktop`), not in the data folder. AniList and MyAnimeList use different anime IDs, so the local list belongs to one service at a time (the main list); making the other one the main list asks before replacing it.
+
+To keep both lists, use **Copy changes here** on the other service under *Settings › Accounts*. Every change to the main list is then also sent to the other service, with the whole entry as it is locally. Anime are matched using the MyAnimeList IDs that AniList stores. Anime with no match there are listed with an error and are left out. **Copy whole list now** sends every entry once, for example right after you turn copying on. Changes made directly on the other service's website are not copied back.
 
 ## Discord status
 

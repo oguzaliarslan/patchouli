@@ -89,20 +89,21 @@ async fn copies_saves_and_deletes_under_matching_ids() {
     // The main queue isn't sent here; the mirror doesn't wait for it.
     sync.process_mirror().await.unwrap();
 
-    let conn = db.lock().unwrap();
-    let left = mirror_queue::all(&conn).unwrap();
-    assert_eq!(left.len(), 1, "only the unmatched anime stays queued");
-    assert_eq!(left[0].anime_id, 999);
-    assert_eq!(
-        left[0].last_error.as_deref(),
-        Some("Not found on MyAnimeList.")
-    );
-    assert_eq!(
-        id_map::get_many(&conn, ServiceId::AniList, ServiceId::MyAnimeList, &[154587]).unwrap()
-            [&154587],
-        52991
-    );
-    drop(conn);
+    {
+        let conn = db.lock().unwrap();
+        let left = mirror_queue::all(&conn).unwrap();
+        assert_eq!(left.len(), 1, "only the unmatched anime stays queued");
+        assert_eq!(left[0].anime_id, 999);
+        assert_eq!(
+            left[0].last_error.as_deref(),
+            Some("Not found on MyAnimeList.")
+        );
+        assert_eq!(
+            id_map::get_many(&conn, ServiceId::AniList, ServiceId::MyAnimeList, &[154587]).unwrap()
+                [&154587],
+            52991
+        );
+    }
 
     // Removing it deletes it there too, with the ID already known.
     Mock::given(method("DELETE"))

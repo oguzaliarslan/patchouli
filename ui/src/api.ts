@@ -46,6 +46,8 @@ export interface Settings {
   "sharing.webhook.headers": string[];
   "sharing.webhook.url": string;
   "sync.enabled": boolean;
+  /** Copy list changes to the service that isn't `sync.service`. */
+  "sync.mirror.enabled": boolean;
   "sync.service": ServiceId;
   "track.detection.disabledPlayers": string[];
   "track.detection.enabled": boolean;
@@ -97,6 +99,19 @@ export interface AccountStatus {
   /** The selected service, whose list is shown. */
   current: boolean;
   connected: boolean;
+  /** Changes to the main list are copied to this service. */
+  mirror: boolean;
+  mirrorConnected: boolean;
+}
+
+export interface MirrorStatus {
+  enabled: boolean;
+  service: ServiceId;
+  name: string;
+  connected: boolean;
+  /** Changes waiting to be copied, including failed ones. */
+  pending: number;
+  failed: { animeId: number; title: string; error: string }[];
 }
 
 export type ListStatus =
@@ -480,8 +495,12 @@ export const api = {
 
   accounts: () => invoke<AccountStatus[]>("accounts_get"),
   /** Opens the browser and waits for the login to finish (up to 5 minutes). */
-  login: (service: ServiceId, replaceLocal = false) =>
-    invoke<AccountStatus>("account_login", { service, replaceLocal }),
+  login: (service: ServiceId, replaceLocal = false, mirror = false) =>
+    invoke<AccountStatus>("account_login", { service, replaceLocal, mirror }),
+  mirrorStatus: () => invoke<MirrorStatus>("mirror_status"),
+  /** Queues the whole list to be copied; returns how many entries. */
+  mirrorCopyAll: () => invoke<number>("mirror_copy_all"),
+  mirrorDismissFailed: () => invoke<number>("mirror_dismiss_failed"),
   logout: (service: ServiceId) => invoke<AccountStatus>("account_logout", { service }),
   syncNow: () => invoke<void>("sync_now"),
   onSync: (handler: (event: SyncEvent) => void): Promise<UnlistenFn> =>

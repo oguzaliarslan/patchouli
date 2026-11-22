@@ -1835,3 +1835,32 @@ dd {
   align-self: flex-start;
   max-width: 100%;
 }
+
+/* Copying to the second service ------------------------------------------- */
+
+.mirror-panel {
+  margin-top: 16px;
+}
+
+.mirror-panel h3 {
+  margin-top: 0;
+}
+
+.mirror-failed {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mirror-failed li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.account .inline button {
+  white-space: nowrap;
+}
