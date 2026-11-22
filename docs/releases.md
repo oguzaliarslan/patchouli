@@ -2,6 +2,8 @@
 
 Run `powershell -ExecutionPolicy Bypass -File scripts/release.ps1` from the project root. It stages the x64 NSIS and MSI installers and a portable ZIP in a new folder under `target/releases`. Use `-NsisOnly` when building just the NSIS installer and ZIP.
 
+The installer artwork in `src-tauri/installer/` is drawn by `python scripts/installer_images.py` (needs Pillow); edit the script and run it again to change it.
+
 Set `PATCHOULI_SIGNING_THUMBPRINT` to the thumbprint of an Authenticode certificate with its private key available in the Windows certificate store. Omit it to build unsigned Windows packages.
 
 For an update release, set `TAURI_SIGNING_PRIVATE_KEY` to the path of the updater private key and provide its password through `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Run the release script with `-SignedUpdates` to generate installer signatures and `latest.json`. The updater requires signatures that bind each installer to the version in the manifest. Attach the generated installers, signatures, ZIP and manifest to the public GitHub release tagged `v<version>`. The script uses `oguzaliarslan/patchouli` by default. Use `-Repository owner/repo` to build for another release repository.

@@ -38,7 +38,21 @@
     ],
     "resources": [
       "resources/*"
-    ]
+    ],
+    "license": "../LICENSE",
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "installer/header.bmp",
+        "sidebarImage": "installer/sidebar.bmp",
+        "installMode": "currentUser",
+        "compression": "lzma"
+      },
+      "wix": {
+        "bannerPath": "installer/banner.bmp",
+        "dialogImagePath": "installer/dialog.bmp"
+      }
+    }
   },
   "plugins": {
     "updater": {
