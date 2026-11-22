@@ -60,6 +60,12 @@ export interface Settings {
   "track.update.libraryOnly": boolean;
   "track.update.pauseWhenUnfocused": boolean;
   "track.update.trigger": "afterDelay" | "onPlayerClose";
+  /** Percent; 0 always uses the delay. */
+  "track.update.watchedAt": number;
+  "track.position.mpcPort": number;
+  "track.position.vlcPort": number;
+  "track.position.vlcPassword": string;
+  "track.position.mpvIpc": string;
   "torrents.source": string;
   "torrents.searchUrl": string;
   "torrents.autoCheck.enabled": boolean;
@@ -305,6 +311,10 @@ export interface UpdateState {
   episode: number;
   previousEpisode: number;
   paused: boolean;
+  /** Judged by the player's position; `remainingSecs` is playback time left. */
+  byPosition: boolean;
+  positionPercent: number;
+  watchedAtPercent: number;
 }
 
 export interface SharingStatus {

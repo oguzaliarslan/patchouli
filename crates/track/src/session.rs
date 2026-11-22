@@ -6,6 +6,10 @@
 //! updates the list, or waits for the player to close, or asks the user,
 //! depending on settings and on [`decide_update`]. It doesn't save anything
 //! itself: it returns [`Effect`]s for the caller to carry out.
+//!
+//! Players that report their position ([`Progress`]) are judged by that
+//! instead: the episode counts as watched once playback reaches
+//! [`UpdateSettings::watched_at_percent`], however long that took.
 
 use patchouli_anitomy::ElementKind;
 use patchouli_core::{Anime, ListEntry};
@@ -28,6 +32,9 @@ pub struct UpdateSettings {
     pub delay_secs: u32,
     pub trigger: UpdateTrigger,
     pub pause_when_unfocused: bool,
+    /// With a player that reports its position, how far into the episode it
+    /// counts as watched. 0 always uses the delay.
+    pub watched_at_percent: u32,
 }
 
 impl Default for UpdateSettings {
@@ -36,6 +43,25 @@ impl Default for UpdateSettings {
             delay_secs: 120,
             trigger: UpdateTrigger::AfterDelay,
             pause_when_unfocused: false,
+            watched_at_percent: 85,
+        }
+    }
+}
+
+/// Playback position as reported by the player.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Progress {
+    pub position_secs: f64,
+    pub duration_secs: f64,
+    pub playing: bool,
+}
+
+impl Progress {
+    pub fn percent(&self) -> f64 {
+        if self.duration_secs > 0.0 {
+            (self.position_secs / self.duration_secs * 100.0).clamp(0.0, 100.0)
+        } else {
+            0.0
         }
     }
 }
@@ -68,8 +94,14 @@ pub struct UpdateState {
     pub anime_id: i32,
     pub episode: i32,
     pub previous_episode: i32,
-    /// The countdown is stopped because the player isn't focused.
+    /// The countdown is stopped because the player isn't focused, or
+    /// playback is paused.
     pub paused: bool,
+    /// Judged by the player's position: `remaining_secs` is playback time
+    /// left until `watched_at_percent`.
+    pub by_position: bool,
+    pub position_percent: u32,
+    pub watched_at_percent: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -106,6 +138,7 @@ pub struct UpdateSession {
     current: Option<Current>,
     elapsed: u32,
     paused: bool,
+    progress: Option<Progress>,
     dismissed: bool,
     committed: bool,
     notified: bool,
@@ -177,6 +210,7 @@ impl UpdateSession {
         if !same {
             self.elapsed = 0;
             self.paused = false;
+            self.progress = None;
             self.dismissed = false;
             self.committed = false;
             self.notified = false;
@@ -188,18 +222,46 @@ impl UpdateSession {
         self.evaluate(library)
     }
 
-    /// Called every second while [`is_ticking`](Self::is_ticking). Ticks are
-    /// counted rather than timestamps compared, so a skipped tick is a pause.
-    pub fn tick(&mut self, player_focused: bool, library: &impl Library) -> Vec<Effect> {
+    /// Called every second while [`is_ticking`](Self::is_ticking), with the
+    /// player's position if it reports one. Ticks are counted rather than
+    /// timestamps compared, so a skipped tick is a pause.
+    pub fn tick(
+        &mut self,
+        player_focused: bool,
+        progress: Option<Progress>,
+        library: &impl Library,
+    ) -> Vec<Effect> {
         if !self.ticking {
             return Vec::new();
         }
+        if self.settings.watched_at_percent > 0 {
+            if let Some(p) = progress.filter(|p| p.duration_secs > 0.0) {
+                self.progress = Some(p);
+            }
+        }
+        let stopped = progress.is_some_and(|p| !p.playing);
         // Not in focus is the best guess for the player not playing.
-        self.paused = self.settings.pause_when_unfocused && !player_focused;
+        self.paused = stopped || (self.settings.pause_when_unfocused && !player_focused);
         if !self.paused {
             self.elapsed += 1;
         }
         self.evaluate(library)
+    }
+
+    /// Seconds until the episode counts as watched: by position if the player
+    /// reported one, else by time watched.
+    fn remaining(&self) -> u32 {
+        match self
+            .progress
+            .filter(|_| self.settings.watched_at_percent > 0)
+        {
+            Some(p) => {
+                let target =
+                    p.duration_secs * f64::from(self.settings.watched_at_percent.min(100)) / 100.0;
+                (target - p.position_secs).max(0.0).ceil() as u32
+            }
+            None => self.settings.delay_secs.saturating_sub(self.elapsed),
+        }
     }
 
     /// The user agreed to update.
@@ -252,7 +314,7 @@ impl UpdateSession {
                 }
             }
             // Keep asking, unless it was closed too soon.
-            Phase::Confirming if self.elapsed >= self.settings.delay_secs => return effects,
+            Phase::Confirming if self.remaining() == 0 => return effects,
             _ => {}
         }
         effects.extend(self.reset());
@@ -289,9 +351,15 @@ impl UpdateSession {
             },
             ..UpdateState::default()
         };
+        let by_position = self.progress.is_some() && self.settings.watched_at_percent > 0;
+        if by_position {
+            state.by_position = true;
+            state.position_percent = self.progress.map_or(0, |p| p.percent().floor() as u32);
+            state.watched_at_percent = self.settings.watched_at_percent;
+        }
         match decision.action {
             Action::Allow => {
-                let remaining = self.settings.delay_secs.saturating_sub(self.elapsed);
+                let remaining = self.remaining();
                 if self.dismissed {
                     state.phase = Phase::Cancelled;
                 } else if remaining > 0 {
@@ -314,10 +382,7 @@ impl UpdateSession {
             Action::Deny => state.phase = Phase::Denied,
         }
         let mut effects = self.set_state(state);
-        if state.phase == Phase::Confirming
-            && self.elapsed >= self.settings.delay_secs
-            && !self.notified
-        {
+        if state.phase == Phase::Confirming && self.remaining() == 0 && !self.notified {
             self.notified = true;
             effects.push(Effect::ConfirmationRequested(state));
         }
@@ -430,7 +495,49 @@ mod tests {
             delay_secs: delay,
             trigger,
             pause_when_unfocused: pause,
+            watched_at_percent: 85,
         }
+    }
+
+    fn at(position: f64, playing: bool) -> Option<Progress> {
+        Some(Progress {
+            position_secs: position,
+            duration_secs: 100.0,
+            playing,
+        })
+    }
+
+    #[test]
+    fn commits_at_the_set_position() {
+        let lib = library(3);
+        // The delay alone would commit after 2 ticks.
+        let mut s = UpdateSession::new(settings(2, UpdateTrigger::AfterDelay, false));
+        s.on_media_changed(current("Show - 04.mkv"), &lib);
+        assert!(commits(&s.tick(true, at(10.0, true), &lib)).is_empty());
+        assert!(commits(&s.tick(true, at(11.0, true), &lib)).is_empty());
+        assert!(commits(&s.tick(true, at(12.0, true), &lib)).is_empty());
+        let state = s.state();
+        assert!(state.by_position);
+        assert_eq!((state.remaining_secs, state.position_percent), (73, 12));
+        // Paused playback stops the clock too.
+        s.tick(true, at(12.0, false), &lib);
+        assert!(s.state().paused);
+        // Skipping to the end counts.
+        assert_eq!(commits(&s.tick(true, at(90.0, true), &lib)), [(1, 4)]);
+    }
+
+    #[test]
+    fn falls_back_to_the_delay_without_a_position() {
+        let lib = library(3);
+        let mut s = UpdateSession::new(UpdateSettings {
+            watched_at_percent: 0,
+            ..settings(2, UpdateTrigger::AfterDelay, false)
+        });
+        s.on_media_changed(current("Show - 04.mkv"), &lib);
+        // Position is ignored when turned off.
+        assert!(commits(&s.tick(true, at(99.0, true), &lib)).is_empty());
+        assert!(!s.state().by_position);
+        assert_eq!(commits(&s.tick(true, at(99.0, true), &lib)), [(1, 4)]);
     }
 
     fn commits(effects: &[Effect]) -> Vec<(i32, i32)> {
@@ -450,14 +557,14 @@ mod tests {
         s.on_media_changed(current("Show - 04.mkv"), &lib);
         assert_eq!(s.state().phase, Phase::Countdown);
         assert_eq!(s.state().remaining_secs, 3);
-        assert!(commits(&s.tick(true, &lib)).is_empty());
-        assert!(commits(&s.tick(true, &lib)).is_empty());
-        assert_eq!(commits(&s.tick(true, &lib)), [(1, 4)]);
+        assert!(commits(&s.tick(true, None, &lib)).is_empty());
+        assert!(commits(&s.tick(true, None, &lib)).is_empty());
+        assert_eq!(commits(&s.tick(true, None, &lib)), [(1, 4)]);
         assert_eq!(s.state().phase, Phase::Committed);
         assert_eq!(s.state().previous_episode, 3);
         assert!(!s.is_ticking());
         // Further ticks and re-detections of the same episode do nothing.
-        assert!(s.tick(true, &lib).is_empty());
+        assert!(s.tick(true, None, &lib).is_empty());
         assert!(commits(&s.on_media_changed(current("Show - 04.mkv"), &lib)).is_empty());
     }
 
@@ -466,12 +573,12 @@ mod tests {
         let lib = library(3);
         let mut s = UpdateSession::new(settings(2, UpdateTrigger::AfterDelay, true));
         s.on_media_changed(current("Show - 04.mkv"), &lib);
-        s.tick(false, &lib);
+        s.tick(false, None, &lib);
         assert!(s.state().paused);
         assert_eq!(s.state().remaining_secs, 2);
-        s.tick(true, &lib);
+        s.tick(true, None, &lib);
         assert!(!s.state().paused);
-        assert_eq!(commits(&s.tick(true, &lib)), [(1, 4)]);
+        assert_eq!(commits(&s.tick(true, None, &lib)), [(1, 4)]);
     }
 
     #[test]
@@ -479,7 +586,7 @@ mod tests {
         let lib = library(3);
         let mut s = UpdateSession::new(settings(1, UpdateTrigger::OnPlayerClose, false));
         s.on_media_changed(current("Show - 04.mkv"), &lib);
-        assert!(commits(&s.tick(true, &lib)).is_empty());
+        assert!(commits(&s.tick(true, None, &lib)).is_empty());
         assert_eq!(s.state().phase, Phase::WaitingForClose);
         assert_eq!(commits(&s.on_media_changed(None, &lib)), [(1, 4)]);
     }
@@ -489,7 +596,7 @@ mod tests {
         let lib = library(3);
         let mut s = UpdateSession::new(settings(10, UpdateTrigger::AfterDelay, false));
         s.on_media_changed(current("Show - 04.mkv"), &lib);
-        s.tick(true, &lib);
+        s.tick(true, None, &lib);
         assert!(commits(&s.on_media_changed(None, &lib)).is_empty());
         assert_eq!(s.state().phase, Phase::Idle);
         assert!(s.current().is_none());
@@ -502,8 +609,8 @@ mod tests {
         s.on_media_changed(current("Show - 07.mkv"), &lib);
         assert_eq!(s.state().phase, Phase::Confirming);
         assert_eq!(s.state().reason, Reason::SkipsAhead);
-        s.tick(true, &lib);
-        let effects = s.tick(true, &lib);
+        s.tick(true, None, &lib);
+        let effects = s.tick(true, None, &lib);
         assert!(
             effects
                 .iter()
@@ -511,7 +618,7 @@ mod tests {
         );
         // Asked once only.
         assert!(
-            !s.tick(true, &lib)
+            !s.tick(true, None, &lib)
                 .iter()
                 .any(|e| matches!(e, Effect::ConfirmationRequested(_)))
         );
@@ -529,7 +636,7 @@ mod tests {
         s.cancel(&lib);
         assert_eq!(s.state().phase, Phase::Cancelled);
         for _ in 0..10 {
-            assert!(commits(&s.tick(true, &lib)).is_empty());
+            assert!(commits(&s.tick(true, None, &lib)).is_empty());
         }
         // The next episode starts over.
         s.on_media_changed(current("Show - 05.mkv"), &lib);
@@ -546,8 +653,8 @@ mod tests {
         });
         s.on_media_changed(unknown, &lib);
         assert_eq!(s.state().phase, Phase::Idle);
-        s.tick(true, &lib);
-        s.tick(true, &lib);
+        s.tick(true, None, &lib);
+        s.tick(true, None, &lib);
         s.on_media_changed(current("Show - 04.mkv"), &lib);
         assert_eq!(s.state().remaining_secs, 1);
     }
@@ -558,6 +665,6 @@ mod tests {
         let mut s = UpdateSession::new(settings(1, UpdateTrigger::AfterDelay, false));
         s.on_media_changed(current("Show - 04.mkv"), &lib);
         assert_eq!(s.state().phase, Phase::Denied);
-        assert!(commits(&s.tick(true, &lib)).is_empty());
+        assert!(commits(&s.tick(true, None, &lib)).is_empty());
     }
 }

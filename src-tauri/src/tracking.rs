@@ -64,6 +64,7 @@ pub fn update_settings(settings: &Settings) -> UpdateSettings {
             patchouli_settings::UpdateTrigger::OnPlayerClose => UpdateTrigger::OnPlayerClose,
         },
         pause_when_unfocused: settings.update_pause_when_unfocused,
+        watched_at_percent: settings.update_watched_at.min(100),
     }
 }
 
@@ -140,14 +141,27 @@ pub fn start(app: &AppHandle) {
         loop {
             interval.tick().await;
             let state = handle.state::<AppState>();
+            if !lock(&state.tracker.session).is_ticking() {
+                continue;
+            }
             let window = *lock(&state.tracker.window);
             let focused = window.is_some() && patchouli_detect::foreground_window() == window;
+            let settings = state.settings.get();
+            let source = state
+                .tracker
+                .now_playing()
+                .and_then(|n| crate::playback::source_for(&n.player))
+                .filter(|_| settings.update_watched_at > 0);
+            let progress = match source {
+                Some(source) => crate::playback::read(source, &settings).await,
+                None => None,
+            };
             let effects = {
                 let mut session = lock(&state.tracker.session);
                 if !session.is_ticking() {
                     continue;
                 }
-                session.tick(focused, &DbLibrary(&state))
+                session.tick(focused, progress, &DbLibrary(&state))
             };
             handle_effects(&handle, &state, effects);
         }

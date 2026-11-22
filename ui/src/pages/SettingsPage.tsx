@@ -423,6 +423,93 @@ function LibrarySection({ settings, change }: SectionProps) {
   );
 }
 
+/** Marking episodes watched by the player's position. */
+function PositionSettings({ settings, change }: SectionProps) {
+  const percent = settings["track.update.watchedAt"];
+  const port = (key: "track.position.mpcPort" | "track.position.vlcPort") => (text: string) => {
+    const value = Number.parseInt(text, 10);
+    if (value > 0 && value < 65536) change(key, value);
+  };
+  return (
+    <>
+      <h3>Position in the episode</h3>
+      <p className="muted small">
+        mpv, MPC-HC, MPC-BE and VLC can report how far into the episode you are. Their episodes count as watched at a
+        point in playback, so skipping ahead or pausing doesn't confuse the timer. Other players use the timer above.
+      </p>
+      <Toggle
+        label="Use the playback position when the player reports it"
+        checked={percent > 0}
+        onChange={(v) => change("track.update.watchedAt", v ? 85 : 0)}
+      />
+      {percent > 0 && (
+        <>
+          <Field label="Watched at" htmlFor="watched-at" hint="Between 50% and 100% of the episode.">
+            <span className="inline">
+              <input
+                id="watched-at"
+                type="number"
+                min={50}
+                max={100}
+                className="narrow"
+                value={percent}
+                onChange={(e) => {
+                  const value = Number.parseInt(e.target.value, 10);
+                  if (value >= 50 && value <= 100) change("track.update.watchedAt", value);
+                }}
+              />
+              <span className="muted">%</span>
+            </span>
+          </Field>
+          <Field
+            label="mpv pipe"
+            htmlFor="mpv-ipc"
+            hint="Start mpv with --input-ipc-server=mpvsocket (or add it to mpv.conf without the dashes)."
+          >
+            <LazyInput
+              id="mpv-ipc"
+              value={settings["track.position.mpvIpc"]}
+              onCommit={(v) => change("track.position.mpvIpc", v.trim() || "mpvsocket")}
+            />
+          </Field>
+          <Field
+            label="MPC-HC / MPC-BE port"
+            htmlFor="mpc-port"
+            hint="Turn on Options › Player › Web Interface › Listen on port."
+          >
+            <LazyInput
+              id="mpc-port"
+              type="number"
+              value={String(settings["track.position.mpcPort"])}
+              onCommit={port("track.position.mpcPort")}
+            />
+          </Field>
+          <Field
+            label="VLC port"
+            htmlFor="vlc-port"
+            hint="Turn on the Web interface under Preferences › All › Interface › Main interfaces, and set a password under Lua."
+          >
+            <LazyInput
+              id="vlc-port"
+              type="number"
+              value={String(settings["track.position.vlcPort"])}
+              onCommit={port("track.position.vlcPort")}
+            />
+          </Field>
+          <Field label="VLC password" htmlFor="vlc-password">
+            <LazyInput
+              id="vlc-password"
+              type="password"
+              value={settings["track.position.vlcPassword"]}
+              onCommit={(v) => change("track.position.vlcPassword", v)}
+            />
+          </Field>
+        </>
+      )}
+    </>
+  );
+}
+
 function RecognitionSection({ settings, change }: SectionProps) {
   const trigger = settings["track.update.trigger"];
   return (
@@ -467,6 +554,7 @@ function RecognitionSection({ settings, change }: SectionProps) {
         checked={settings["track.update.pauseWhenUnfocused"]}
         onChange={(v) => change("track.update.pauseWhenUnfocused", v)}
       />
+      <PositionSettings settings={settings} change={change} />
       <Toggle
         label="Only update for episodes in library folders"
         checked={settings["track.update.libraryOnly"]}

@@ -48,3 +48,13 @@ Player detection on Linux uses MPRIS (mpv needs the `mpv-mpris` script), and on 
 ## Data
 
 Data (`media.sqlite`, `settings.json`, `accounts.json`) goes in `%APPDATA%\app.tracker.desktop`. To run in portable mode, put an empty file named `portable` next to the executable, and data goes in `data\` beside it instead.
+
+## Marking episodes watched by playback position
+
+mpv, MPC-HC, MPC-BE and VLC can report how far into the episode you are. With **Settings › Recognition › Use the playback position** on (the default), an episode in one of these players counts as watched once playback reaches the set percentage (85% by default), however long that took. Other players, and these when Patchouli can't reach them, use the timer.
+
+Each player needs its interface turned on:
+
+- **mpv / mpv.net**: add `input-ipc-server=mpvsocket` to `mpv.conf`, or start it with `--input-ipc-server=mpvsocket`.
+- **MPC-HC / MPC-BE**: *Options › Player › Web Interface › Listen on port* (13579 by default).
+- **VLC**: *Tools › Preferences › Show settings: All › Interface › Main interfaces*, tick *Web*, then set a password under *Main interfaces › Lua* and enter it in Patchouli. The port is 8080 unless you've changed it.

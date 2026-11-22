@@ -178,7 +178,9 @@ function DetectionStatus() {
   const episode = playing.episodes.length ? ` #${playing.episodes.join("–")}` : "";
   const suffix =
     update?.phase === "countdown"
-      ? ` · updating in ${update.remainingSecs}s`
+      ? update.byPosition
+        ? ` · ${update.positionPercent}% of ${update.watchedAtPercent}%`
+        : ` · updating in ${update.remainingSecs}s`
       : update?.phase === "committed"
         ? " · updated"
         : update?.phase === "confirming"

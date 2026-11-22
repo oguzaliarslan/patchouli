@@ -155,6 +155,11 @@ let settings: Settings = {
   "track.update.libraryOnly": false,
   "track.update.pauseWhenUnfocused": false,
   "track.update.trigger": "afterDelay",
+  "track.update.watchedAt": 85,
+  "track.position.mpcPort": 13579,
+  "track.position.vlcPort": 8080,
+  "track.position.vlcPassword": "",
+  "track.position.mpvIpc": "mpvsocket",
   "torrents.source": "https://www.tokyotosho.info/rss.php?filter=1,11&zwnj=0",
   "torrents.searchUrl": "https://nyaa.si/?page=rss&c=1_2&f=0&q=%title%",
   "torrents.autoCheck.enabled": false,
@@ -512,6 +517,9 @@ export function installMocks() {
               episode: next,
               previousEpisode: watching.watchedEpisodes,
               paused: false,
+              byPosition: false,
+              positionPercent: 0,
+              watchedAtPercent: 85,
             },
           };
         }

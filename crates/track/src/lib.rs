@@ -17,7 +17,9 @@ pub mod session;
 use patchouli_core::{Anime, FuzzyDate, ListEntry, ListStatus};
 
 pub use decision::{Action, Reason, UpdateDecision, decide_update, watched_episode_number};
-pub use session::{Effect, Phase, UpdateSession, UpdateSettings, UpdateState, UpdateTrigger};
+pub use session::{
+    Effect, Phase, Progress, UpdateSession, UpdateSettings, UpdateState, UpdateTrigger,
+};
 
 /// Today in local time.
 pub fn today() -> FuzzyDate {

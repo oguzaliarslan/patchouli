@@ -102,8 +102,18 @@ function UpdateStatus({
     case "countdown":
       return (
         <p className="update-status">
-          {update.paused ? "Paused while the player isn't focused. " : ""}
-          Updating to episode {update.episode} in {formatRemaining(update.remainingSecs)}.{" "}
+          {update.byPosition ? (
+            <>
+              {update.paused ? "Paused. " : ""}
+              At {update.positionPercent}%; episode {update.episode} counts as watched at {update.watchedAtPercent}%
+              ({formatRemaining(update.remainingSecs)} of playback left).{" "}
+            </>
+          ) : (
+            <>
+              {update.paused ? "Paused while the player isn't focused. " : ""}
+              Updating to episode {update.episode} in {formatRemaining(update.remainingSecs)}.{" "}
+            </>
+          )}
           <button className="link" disabled={busy} onClick={() => onAnswer(false)}>
             Don't update
           </button>

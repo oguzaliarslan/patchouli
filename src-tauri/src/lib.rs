@@ -7,6 +7,7 @@ mod export;
 mod library;
 mod logging;
 mod paths;
+mod playback;
 mod recognition;
 mod resources;
 mod sharing;

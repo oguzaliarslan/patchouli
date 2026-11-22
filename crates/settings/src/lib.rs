@@ -189,6 +189,21 @@ pub struct Settings {
     pub update_pause_when_unfocused: bool,
     #[serde(rename = "track.update.trigger")]
     pub update_trigger: UpdateTrigger,
+    /// With players that report their position: percent of the episode after
+    /// which it counts as watched. 0 uses the delay for every player.
+    #[serde(rename = "track.update.watchedAt")]
+    pub update_watched_at: u32,
+    /// MPC-HC/MPC-BE web interface port.
+    #[serde(rename = "track.position.mpcPort")]
+    pub position_mpc_port: u16,
+    /// VLC HTTP interface port and password.
+    #[serde(rename = "track.position.vlcPort")]
+    pub position_vlc_port: u16,
+    #[serde(rename = "track.position.vlcPassword")]
+    pub position_vlc_password: String,
+    /// mpv's `--input-ipc-server` name (a pipe name, or socket path).
+    #[serde(rename = "track.position.mpvIpc")]
+    pub position_mpv_ipc: String,
 
     #[serde(rename = "torrents.source")]
     pub torrent_source: String,
@@ -281,6 +296,11 @@ impl Default for Settings {
             update_library_only: false,
             update_pause_when_unfocused: false,
             update_trigger: UpdateTrigger::AfterDelay,
+            update_watched_at: 85,
+            position_mpc_port: 13579,
+            position_vlc_port: 8080,
+            position_vlc_password: String::new(),
+            position_mpv_ipc: "mpvsocket".into(),
             torrent_source: DEFAULT_TORRENT_SOURCE.into(),
             torrent_search_url: DEFAULT_TORRENT_SEARCH.into(),
             // Taiga checks by default; off here until the user sets a feed up.
