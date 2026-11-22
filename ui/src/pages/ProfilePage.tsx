@@ -2,9 +2,10 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { api, type ListStatus } from "../api";
+import { WatchYear } from "../components/WatchYear";
 import { useApp } from "../lib/context";
 import { LIST_STATUSES, LIST_STATUS_LABELS, TYPE_LABELS, formatScore } from "../lib/format";
-import { keys, queryClient, useCurrentAccount } from "../lib/queries";
+import { keys, queryClient, useCurrentAccount, useHistory, useList, useSettings } from "../lib/queries";
 
 /** `3 days 4 hours` from seconds (omitting seconds). */
 export function formatDuration(seconds: number): string {
@@ -74,6 +75,9 @@ export function ProfilePage() {
     if (connected && !account?.avatarUrl && refresh.isIdle) refresh.mutate();
   }, [connected, account?.avatarUrl, refresh]);
 
+  const { data: history } = useHistory();
+  const { data: list = [] } = useList();
+  const language = useSettings().data?.["app.titleLanguage"] ?? "romaji";
   const format = account?.scoreFormat ?? null;
   const scored = stats?.scoreCounts.reduce((a, b) => a + b, 0) ?? 0;
 
@@ -198,6 +202,8 @@ export function ProfilePage() {
               </section>
             )}
           </div>
+
+          {history && <WatchYear history={history} list={list} language={language} />}
         </>
       )}
     </div>
