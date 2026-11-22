@@ -6,9 +6,11 @@ import { availability, useAvailable } from "../lib/available";
 import { useApp } from "../lib/context";
 import { episodesText, isNsfw, itemTitle, relativeTime } from "../lib/format";
 import { useAnimeMenu } from "../lib/useAnimeMenu";
+import { useState } from "react";
 import {
   useCurrentAccount,
   useList,
+  useRecommendations,
   useSequels,
   useSettings,
   useTaigaDetection,
@@ -28,6 +30,13 @@ export function HomePage({ sync }: { sync: SyncState }) {
   const language = settings?.["app.titleLanguage"] ?? "romaji";
   const hideNsfw = settings?.["app.hideNsfw"] ?? true;
   const { data: allSequels = [] } = useSequels();
+  const { data: allGroups = [] } = useRecommendations();
+  const groups = allGroups
+    .map((g) => ({ ...g, items: g.items.filter((a) => !(hideNsfw && isNsfw(a))) }))
+    .filter((g) => g.items.length >= 3);
+  // A different liked anime each day; "Another" moves on.
+  const [offset, setOffset] = useState(() => Math.floor(Date.now() / 86_400_000));
+  const group = groups.length ? groups[offset % groups.length] : null;
   // Only what's airing or coming up: the Sequels page has the rest.
   const sequels = allSequels.filter(
     (s) => (s.anime.status === "Airing" || s.anime.status === "NotYetAired") && !(hideNsfw && isNsfw(s.anime)),
@@ -109,6 +118,29 @@ export function HomePage({ sync }: { sync: SyncState }) {
             );
           })}
         </div>
+      )}
+
+      {group && (
+        <>
+          <div className="section-head">
+            <h2 className="section-title">
+              Because you liked{" "}
+              <button className="link" onClick={() => app.openAnime(group.becauseId)}>
+                {group.becauseTitle}
+              </button>
+            </h2>
+            {groups.length > 1 && (
+              <button className="link" onClick={() => setOffset((o) => o + 1)}>
+                Another
+              </button>
+            )}
+          </div>
+          <div className="suggest-grid">
+            {group.items.slice(0, 6).map((anime) => (
+              <SuggestionCard key={anime.id} anime={anime} detail={airingText(anime)} />
+            ))}
+          </div>
+        </>
       )}
 
       {sequels.length > 0 && (

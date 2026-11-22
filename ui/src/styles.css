@@ -1918,3 +1918,8 @@ dd {
   gap: 4px;
   font-size: 12px;
 }
+
+.section-title .link {
+  font: inherit;
+  text-transform: none;
+}
