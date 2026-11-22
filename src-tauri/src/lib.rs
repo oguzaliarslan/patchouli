@@ -1,6 +1,7 @@
 mod airing;
 mod available;
 mod backup;
+mod compare;
 mod credentials;
 mod discover;
 mod error;
@@ -59,6 +60,7 @@ pub(crate) struct AppState {
     available: available::Available,
     airing: airing::Airing,
     discover: discover::Discover,
+    compare: compare::Compare,
     updates: update::Updates,
     /// Held while a login is in progress.
     login: tokio::sync::Mutex<()>,
@@ -219,6 +221,7 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         available: available::Available::default(),
         airing: airing::Airing::default(),
         discover: discover::Discover::default(),
+        compare: compare::Compare::default(),
         updates: update::Updates::default(),
         login: tokio::sync::Mutex::new(()),
     })
@@ -319,6 +322,9 @@ pub fn run() {
             sync::mirror_dismiss_failed,
             discover::sequels_get,
             backup::backups_get,
+            compare::compare_lists,
+            compare::compare_last,
+            compare::compare_apply,
             hotkeys::hotkeys_get,
             backup::backup_now,
             backup::backup_open_folder,

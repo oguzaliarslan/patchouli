@@ -19,6 +19,7 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { HomePage } from "./pages/HomePage";
 import { LibraryPage } from "./pages/LibraryPage";
 import { ListPage } from "./pages/ListPage";
+import { ComparePage } from "./pages/ComparePage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SchedulePage } from "./pages/SchedulePage";
 import { SearchPage } from "./pages/SearchPage";
@@ -51,7 +52,10 @@ const NAV: { label: string; items: NavItem[] }[] = [
   },
   {
     label: "Account",
-    items: [{ id: "profile", label: "Profile", icon: "person" }],
+    items: [
+      { id: "profile", label: "Profile", icon: "person" },
+      { id: "compare", label: "Compare lists", icon: "compare" },
+    ],
   },
 ];
 
@@ -144,6 +148,7 @@ export default function App() {
           {page === "sequels" && <SequelsPage />}
           {page === "torrents" && <TorrentsPage />}
           {page === "profile" && <ProfilePage />}
+          {page === "compare" && <ComparePage />}
           {page === "settings" && <SettingsPage />}
         </main>
 

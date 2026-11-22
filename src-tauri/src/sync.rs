@@ -53,7 +53,7 @@ pub fn mirror_service(primary: ServiceId) -> ServiceId {
 }
 
 /// A client for `service` from its saved account and tokens.
-fn saved_session(
+pub(crate) fn saved_session(
     state: &AppState,
     service: ServiceId,
 ) -> Option<(Client, patchouli_sync::Account)> {

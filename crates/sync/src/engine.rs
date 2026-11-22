@@ -195,7 +195,17 @@ impl Synchronizer {
 
     /// Saves an edited entry and queues the changed fields. Returns `false` if
     /// nothing changed. Records history when the episode number changes.
-    pub fn save_entry(&self, mut entry: ListEntry) -> Result<bool> {
+    pub fn save_entry(&self, entry: ListEntry) -> Result<bool> {
+        self.save(entry, true)
+    }
+
+    /// [`Self::save_entry`] without recording history: for entries copied
+    /// from another list rather than watched.
+    pub fn import_entry(&self, entry: ListEntry) -> Result<bool> {
+        self.save(entry, false)
+    }
+
+    fn save(&self, mut entry: ListEntry, record_history: bool) -> Result<bool> {
         let db = self.db();
         let previous = list::get(&db, entry.anime_id)?;
         let baseline = previous.unwrap_or_else(|| ListEntry {
@@ -211,7 +221,7 @@ impl Synchronizer {
         entry.pending_delete = false;
         entry.last_updated = now();
         list::upsert(&db, &entry)?;
-        if dirty.contains(Fields::EPISODE) && entry.watched_episodes > 0 {
+        if record_history && dirty.contains(Fields::EPISODE) && entry.watched_episodes > 0 {
             history::add(
                 &db,
                 entry.anime_id,
@@ -444,9 +454,9 @@ impl Synchronizer {
         Ok(())
     }
 
-    /// IDs on the mirror for `ids` on the main service; 0 if there's no match.
-    /// Looks up IDs not seen before on AniList, which knows both.
-    async fn match_ids(
+    /// IDs on `mirror`'s service for `ids` on `primary`'s; 0 if there's no
+    /// match. Looks up IDs not seen before on AniList, which knows both.
+    pub async fn match_ids(
         &self,
         primary: &Client,
         mirror: &Client,

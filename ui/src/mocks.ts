@@ -292,6 +292,40 @@ let backups = [1, 2, 3].map((daysAgo) => {
   };
 });
 
+let comparison: unknown = null;
+
+function sampleComparison() {
+  const items = listItems().slice(0, 60);
+  const side = (item: (typeof items)[number], change?: Partial<ListEntry>) => ({
+    animeId: item.entry.animeId,
+    title: item.anime?.titles.romaji ?? "",
+    entry: { ...item.entry, ...change },
+  });
+  const rows = items.map((item, i) => {
+    const key = `${item.entry.animeId}:${item.entry.animeId + 1000}`;
+    if (i % 6 === 0)
+      return {
+        key,
+        kind: "different",
+        main: side(item),
+        other: { ...side(item, { watchedEpisodes: Math.max(0, item.entry.watchedEpisodes - 2), score: 70 }), animeId: item.entry.animeId + 1000 },
+        fields: ["progress", "score"],
+      };
+    if (i % 9 === 1)
+      return { key, kind: "onlyMain", main: side(item), other: { animeId: item.entry.animeId + 1000, title: item.anime?.titles.romaji ?? "", entry: null }, fields: [] };
+    if (i % 13 === 2) return { key: `${item.entry.animeId}:0`, kind: "noMatch", main: side(item), other: null, fields: [] };
+    return { key, kind: "same", main: side(item), other: { ...side(item), animeId: item.entry.animeId + 1000 }, fields: [] };
+  });
+  rows.push({
+    key: "0:9999",
+    kind: "onlyOther",
+    main: { animeId: 399, title: "Only On The Other Site", entry: null },
+    other: { animeId: 9999, title: "Only On The Other Site", entry: { ...items[0].entry, animeId: 9999 } },
+    fields: [],
+  } as never);
+  return { mainService: "anilist", mainName: "AniList", otherService: "myanimelist", otherName: "MyAnimeList", time: now(), rows };
+}
+
 const dismissedSuggestions = new Set<number>();
 
 /** Anime from the catalog that aren't in the list, for suggestions. */
@@ -433,6 +467,18 @@ export function installMocks() {
             { action: "increment", accelerator: settings["app.hotkeys.increment"], error: null },
             { action: "toggleDetection", accelerator: settings["app.hotkeys.toggleDetection"], error: null },
           ];
+        case "compare_lists":
+          await sleep(1200);
+          comparison = sampleComparison();
+          return comparison;
+        case "compare_last":
+          return comparison;
+        case "compare_apply": {
+          const c = comparison as { rows: { key: string; kind: string; fields: string[] }[] };
+          const wanted = new Set(a.keys as string[]);
+          for (const row of c.rows) if (wanted.has(row.key)) Object.assign(row, { kind: "same", fields: [] });
+          return { comparison: c, copied: wanted.size, errors: [] };
+        }
         case "backups_get":
           return backups;
         case "backup_now": {

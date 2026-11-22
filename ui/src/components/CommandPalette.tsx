@@ -25,6 +25,7 @@ const PAGES: [Page, string][] = [
   ["library", "Library"],
   ["torrents", "Torrents"],
   ["profile", "Profile"],
+  ["compare", "Compare lists"],
   ["settings", "Settings"],
 ];
 

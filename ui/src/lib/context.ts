@@ -12,6 +12,7 @@ export type Page =
   | "library"
   | "torrents"
   | "profile"
+  | "compare"
   | "settings";
 
 export interface AppActions {

@@ -144,6 +144,35 @@ export interface HotkeyStatus {
   error: string | null;
 }
 
+export type CompareKind = "same" | "different" | "onlyMain" | "onlyOther" | "noMatch";
+export type CompareTarget = "main" | "other";
+
+export interface CompareSide {
+  animeId: number;
+  title: string;
+  entry: ListEntry | null;
+}
+
+export interface CompareRow {
+  /** `main:other` anime IDs, 0 for unknown. */
+  key: string;
+  kind: CompareKind;
+  main: CompareSide | null;
+  other: CompareSide | null;
+  /** `status`, `progress`, `score`, `rewatches`, `started`, `completed`. */
+  fields: string[];
+}
+
+export interface Comparison {
+  mainService: ServiceId;
+  mainName: string;
+  otherService: ServiceId;
+  otherName: string;
+  /** Unix seconds. */
+  time: number;
+  rows: CompareRow[];
+}
+
 export interface MirrorStatus {
   enabled: boolean;
   service: ServiceId;
@@ -543,6 +572,12 @@ export const api = {
     invoke<AccountStatus>("account_login", { service, replaceLocal, mirror }),
   mirrorStatus: () => invoke<MirrorStatus>("mirror_status"),
   backups: () => invoke<BackupInfo[]>("backups_get"),
+  /** Fetches both services' lists and compares them. */
+  compareLists: () => invoke<Comparison>("compare_lists"),
+  compareLast: () => invoke<Comparison | null>("compare_last"),
+  /** Makes `target`'s list match the other for the rows with `keys`. */
+  compareApply: (keys: string[], target: CompareTarget) =>
+    invoke<{ comparison: Comparison; copied: number; errors: string[] }>("compare_apply", { keys, target }),
   hotkeys: () => invoke<HotkeyStatus[]>("hotkeys_get"),
   backupNow: () => invoke<BackupInfo>("backup_now"),
   openBackupFolder: () => invoke<void>("backup_open_folder"),
