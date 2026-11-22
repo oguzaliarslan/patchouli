@@ -7,13 +7,19 @@
 //! Local edits are saved to the database at once and queued. The queue is
 //! sent oldest first, one item at a time, and stops at the first failure,
 //! which is recorded on the item and retried later.
+//!
+//! With mirroring on, each change is also queued for the second service
+//! (`mirror_queue`). The main service's list is the one shown and fetched;
+//! the mirror is sent the whole entry as it is locally, under the matching
+//! anime ID there (see [`patchouli_db::id_map`]).
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::time::Duration;
 
-use patchouli_core::{Fields, ListEntry, QueueItem};
-use patchouli_db::{Connection, anime, history, list, queue};
+use patchouli_core::{Fields, ListEntry, QueueItem, ServiceId};
+use patchouli_db::queue::mirror as mirror_queue;
+use patchouli_db::{Connection, anime, history, id_map, list, queue};
 use serde::Serialize;
 use tokio::sync::Notify;
 
@@ -54,10 +60,22 @@ struct Processing {
     modified: bool,
 }
 
+type Session = (Arc<Client>, Account);
+
+#[derive(Default)]
+struct Mirror {
+    /// Changes are queued for the mirror.
+    enabled: bool,
+    /// Logged in to the mirror service.
+    session: Option<Session>,
+}
+
 pub struct Synchronizer {
     db: Arc<Mutex<Connection>>,
-    session: RwLock<Option<(Arc<Client>, Account)>>,
+    session: RwLock<Option<Session>>,
+    mirror: RwLock<Mirror>,
     processing: Mutex<Processing>,
+    mirror_processing: Mutex<Processing>,
     /// Only one sync (queue or fetch) runs at a time.
     running: tokio::sync::Mutex<()>,
     wake: Notify,
@@ -72,7 +90,9 @@ impl Synchronizer {
         Self {
             db,
             session: RwLock::new(None),
+            mirror: RwLock::new(Mirror::default()),
             processing: Mutex::new(Processing::default()),
+            mirror_processing: Mutex::new(Processing::default()),
             running: tokio::sync::Mutex::new(()),
             wake: Notify::new(),
             listener: Box::new(listener),
@@ -94,6 +114,80 @@ impl Synchronizer {
 
     pub fn is_logged_in(&self) -> bool {
         self.session().is_some()
+    }
+
+    /// Turns copying changes to the second service on or off.
+    pub fn set_mirroring(&self, enabled: bool) {
+        self.mirror
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .enabled = enabled;
+        if enabled {
+            self.wake.notify_one();
+        }
+    }
+
+    pub fn is_mirroring(&self) -> bool {
+        self.mirror
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .enabled
+    }
+
+    /// Sets the client for the second service, or `None` when logged out.
+    pub fn set_mirror_session(&self, session: Option<(Client, Account)>) {
+        self.mirror
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .session = session.map(|(client, account)| (Arc::new(client), account));
+        self.wake.notify_one();
+    }
+
+    pub fn mirror_session(&self) -> Option<(Arc<Client>, Account)> {
+        self.mirror
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .session
+            .clone()
+    }
+
+    /// Queues every list entry for the mirror, to copy the whole list once.
+    /// Returns how many were queued.
+    pub fn mirror_all(&self) -> Result<usize> {
+        let db = self.db();
+        let entries = list::all(&db)?;
+        let time = now();
+        for entry in &entries {
+            mirror_queue::upsert(
+                &db,
+                &QueueItem {
+                    anime_id: entry.anime_id,
+                    dirty: Fields::all(),
+                    time,
+                    retry_count: 0,
+                    last_error: None,
+                },
+            )?;
+        }
+        drop(db);
+        self.wake.notify_one();
+        self.emit(SyncEvent::QueueChanged);
+        Ok(entries.len())
+    }
+
+    /// Forgets mirror changes that failed, such as anime with no match.
+    pub fn mirror_dismiss_failed(&self) -> Result<usize> {
+        let db = self.db();
+        let mut removed = 0;
+        for item in mirror_queue::all(&db)? {
+            if item.last_error.is_some() {
+                mirror_queue::remove(&db, item.anime_id)?;
+                removed += 1;
+            }
+        }
+        drop(db);
+        self.emit(SyncEvent::QueueChanged);
+        Ok(removed)
     }
 
     // ---------------------------------------------------------------------
@@ -172,6 +266,24 @@ impl Synchronizer {
             },
         };
         queue::upsert(db, &item)?;
+        if self.is_mirroring() {
+            {
+                let mut processing = self.mirror_processing();
+                if processing.anime_id == Some(anime_id) {
+                    processing.modified = true;
+                }
+            }
+            mirror_queue::upsert(
+                db,
+                &QueueItem {
+                    anime_id,
+                    dirty: Fields::all(),
+                    time: now(),
+                    retry_count: 0,
+                    last_error: None,
+                },
+            )?;
+        }
         self.wake.notify_one();
         self.emit(SyncEvent::QueueChanged);
         Ok(())
@@ -185,7 +297,9 @@ impl Synchronizer {
         let _running = self.running.lock().await;
         self.emit(SyncEvent::Busy { busy: true });
         let result = async {
-            self.process_queue_locked().await?;
+            let sent = self.process_queue_locked().await;
+            self.report_mirror(self.process_mirror_locked().await);
+            sent?;
             self.fetch_list_locked().await
         }
         .await;
@@ -264,6 +378,139 @@ impl Synchronizer {
         }
     }
 
+    /// Sends the mirror queue. Unlike the main queue, an anime with no match
+    /// on the mirror is skipped (and stays queued with an error) rather than
+    /// stopping the rest.
+    pub async fn process_mirror(&self) -> Result<()> {
+        let _running = self.running.lock().await;
+        self.process_mirror_locked().await
+    }
+
+    async fn process_mirror_locked(&self) -> Result<()> {
+        let Some((mirror, account)) = self.mirror_session() else {
+            return Ok(());
+        };
+        let Some((primary, _)) = self.session() else {
+            return Ok(());
+        };
+        if primary.service() == mirror.service() {
+            return Ok(());
+        }
+        let items = mirror_queue::all(&self.db())?;
+        if items.is_empty() {
+            return Ok(());
+        }
+        let ids: Vec<i32> = items.iter().map(|i| i.anime_id).collect();
+        let targets = self.match_ids(&primary, &mirror, &ids).await?;
+        let target_name = mirror.service().name();
+
+        for item in items {
+            let target = targets.get(&item.anime_id).copied().unwrap_or(0);
+            if target == 0 {
+                self.mirror_failed(item.anime_id, format!("Not found on {target_name}."))?;
+                continue;
+            }
+            let local = list::get(&self.db(), item.anime_id)?;
+            *self.mirror_processing() = Processing {
+                anime_id: Some(item.anime_id),
+                modified: false,
+            };
+            let result = match local {
+                Some(entry) if !entry.pending_delete => {
+                    let entry = ListEntry {
+                        id: 0,
+                        anime_id: target,
+                        ..entry
+                    };
+                    mirror.save_entry(&entry, Fields::all()).await.map(|_| ())
+                }
+                _ => mirror.delete_anime(&account.username, target).await,
+            };
+            let modified = std::mem::take(&mut *self.mirror_processing()).modified;
+            match result {
+                Ok(()) => {
+                    // Edited again while in flight: send again.
+                    if !modified {
+                        mirror_queue::remove(&self.db(), item.anime_id)?;
+                    }
+                    self.emit(SyncEvent::QueueChanged);
+                }
+                Err(error) => {
+                    self.mirror_failed(item.anime_id, error.to_string())?;
+                    return Err(error);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// IDs on the mirror for `ids` on the main service; 0 if there's no match.
+    /// Looks up IDs not seen before on AniList, which knows both.
+    async fn match_ids(
+        &self,
+        primary: &Client,
+        mirror: &Client,
+        ids: &[i32],
+    ) -> Result<HashMap<i32, i32>> {
+        let (from, to) = (primary.service(), mirror.service());
+        let mut known = id_map::get_many(&self.db(), from, to, ids)?;
+        let missing: Vec<i32> = ids
+            .iter()
+            .copied()
+            .filter(|id| !known.contains_key(id))
+            .collect();
+        if missing.is_empty() {
+            return Ok(known);
+        }
+        let anilist = match (primary, mirror) {
+            (Client::AniList(c), _) | (_, Client::AniList(c)) => c,
+            _ => {
+                return Err(Error::NotConfigured(
+                    "Copying between these services isn't supported.".into(),
+                ));
+            }
+        };
+        let from_mal = from == ServiceId::MyAnimeList;
+        let found: HashMap<i32, i32> = anilist
+            .match_ids(&missing, from_mal)
+            .await?
+            .into_iter()
+            .map(|(al, mal)| if from_mal { (mal, al) } else { (al, mal) })
+            .collect();
+        let rows: Vec<(i32, i32)> = missing
+            .iter()
+            .map(|id| (*id, found.get(id).copied().unwrap_or(0)))
+            .collect();
+        id_map::set_many(&self.db(), from, to, &rows)?;
+        known.extend(rows);
+        Ok(known)
+    }
+
+    fn mirror_failed(&self, anime_id: i32, message: String) -> Result<()> {
+        let db = self.db();
+        if let Some(mut current) = mirror_queue::get(&db, anime_id)? {
+            current.retry_count += 1;
+            current.last_error = Some(message);
+            mirror_queue::upsert(&db, &current)?;
+        }
+        drop(db);
+        self.emit(SyncEvent::QueueChanged);
+        Ok(())
+    }
+
+    /// Reports a mirror failure as an event, naming the service.
+    fn report_mirror(&self, result: Result<()>) {
+        if let Err(error) = result {
+            let service = self
+                .mirror_session()
+                .map_or("Second service", |(c, _)| c.service().name());
+            self.emit(SyncEvent::Error {
+                unauthorized: error.is_unauthorized(),
+                message: format!("{service} (copy): {error}"),
+            });
+        }
+    }
+
     async fn fetch_list_locked(&self) -> Result<()> {
         let (client, account) = self.session().ok_or(Error::NotLoggedIn)?;
         let remote = client.fetch_list(&account.username).await?;
@@ -310,14 +557,20 @@ impl Synchronizer {
             let pending = queue::all(&self.db())
                 .map(|q| !q.is_empty())
                 .unwrap_or(false);
-            if !pending {
-                continue;
+            if pending {
+                if let Err(error) = self.process_queue().await {
+                    self.emit(SyncEvent::Error {
+                        unauthorized: error.is_unauthorized(),
+                        message: error.to_string(),
+                    });
+                }
             }
-            if let Err(error) = self.process_queue().await {
-                self.emit(SyncEvent::Error {
-                    unauthorized: error.is_unauthorized(),
-                    message: error.to_string(),
-                });
+            let mirror_pending = mirror_queue::all(&self.db())
+                .map(|q| !q.is_empty())
+                .unwrap_or(false);
+            if mirror_pending {
+                let result = self.process_mirror().await;
+                self.report_mirror(result);
             }
         }
     }
@@ -328,6 +581,12 @@ impl Synchronizer {
 
     fn processing(&self) -> MutexGuard<'_, Processing> {
         self.processing.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn mirror_processing(&self) -> MutexGuard<'_, Processing> {
+        self.mirror_processing
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
     }
 
     fn emit(&self, event: SyncEvent) {
@@ -505,6 +764,28 @@ mod tests {
 
         reconcile(&db, 1, false, Some(saved), false).unwrap();
         assert_eq!(list::get(&db, 1).unwrap().unwrap(), remote);
+    }
+
+    #[test]
+    fn mirroring_queues_changes_for_the_second_service() {
+        let (sync, _) = synchronizer();
+        sync.save_entry(entry(1)).unwrap();
+        assert!(mirror_queue::all(&sync.db()).unwrap().is_empty());
+
+        sync.set_mirroring(true);
+        sync.save_entry(entry(2)).unwrap();
+        sync.remove_entry(1).unwrap();
+        let queued: Vec<i32> = mirror_queue::all(&sync.db())
+            .unwrap()
+            .iter()
+            .map(|i| i.anime_id)
+            .collect();
+        assert_eq!(queued.len(), 2);
+        assert!(queued.contains(&1) && queued.contains(&2));
+
+        // Copying the whole list queues every entry.
+        list::upsert(&sync.db(), &entry(3)).unwrap();
+        assert_eq!(sync.mirror_all().unwrap(), 3);
     }
 
     #[tokio::test]

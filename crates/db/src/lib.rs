@@ -4,7 +4,8 @@
 //! can be opened directly and is upgraded in place by [`migrations`].
 //!
 //! Each table has a module of plain functions that take a [`Connection`]:
-//! [`anime`], [`list`], [`anime_settings`], [`history`], [`queue`] and [`meta`].
+//! [`anime`], [`list`], [`anime_settings`], [`history`], [`queue`], [`id_map`]
+//! and [`meta`].
 //! Functions that write several rows use a transaction.
 
 use std::fmt;
@@ -15,6 +16,7 @@ pub use rusqlite::Connection;
 pub mod anime;
 pub mod anime_settings;
 pub mod history;
+pub mod id_map;
 pub mod list;
 pub mod meta;
 pub mod migrations;
@@ -92,7 +94,14 @@ fn configure(conn: &mut Connection) -> Result<()> {
 /// another service can be loaded. `meta` is kept.
 pub fn clear_service_data(conn: &Connection) -> Result<()> {
     in_transaction(conn, |conn| {
-        for table in ["anime", "anime_list", "anime_settings", "history", "queue"] {
+        for table in [
+            "anime",
+            "anime_list",
+            "anime_settings",
+            "history",
+            "queue",
+            "mirror_queue",
+        ] {
             conn.execute(&format!("DELETE FROM {table}"), [])?;
         }
         Ok(())
@@ -148,7 +157,9 @@ mod tests {
                 "anime_list",
                 "anime_settings",
                 "history",
+                "id_map",
                 "meta",
+                "mirror_queue",
                 "queue"
             ]
         );

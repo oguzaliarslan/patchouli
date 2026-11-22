@@ -78,6 +78,24 @@ impl Client {
         }
     }
 
+    /// Removes `anime_id` from the user's list. Unlike [`Self::delete_entry`],
+    /// this works without the service's entry ID.
+    pub async fn delete_anime(&self, username: &str, anime_id: i32) -> Result<()> {
+        let id = match self {
+            Self::AniList(c) => match c.entry_id(username, anime_id).await? {
+                Some(id) => id,
+                None => return Ok(()), // not in the list
+            },
+            Self::MyAnimeList(_) => 0,
+        };
+        self.delete_entry(&ListEntry {
+            id,
+            anime_id,
+            ..ListEntry::default()
+        })
+        .await
+    }
+
     pub async fn search(&self, params: &SearchParams) -> Result<Vec<Anime>> {
         match self {
             Self::AniList(c) => c.search(params).await,

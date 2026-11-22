@@ -1,0 +1,8 @@
+query ($ids: [Int], $malIds: [Int]) {
+  Page(perPage: 50) {
+    media(id_in: $ids, idMal_in: $malIds, type: ANIME) {
+      id
+      idMal
+    }
+  }
+}

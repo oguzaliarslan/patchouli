@@ -169,6 +169,45 @@ impl AniList {
         Ok(all)
     }
 
+    /// Matches anime between AniList and MyAnimeList, as `(anilist, myanimelist)`
+    /// pairs. `ids` are AniList IDs, or MyAnimeList IDs if `from_mal`. Anime
+    /// with no match on the other service are left out.
+    pub async fn match_ids(&self, ids: &[i32], from_mal: bool) -> Result<Vec<(i32, i32)>> {
+        let mut pairs = Vec::new();
+        for chunk in ids.chunks(50) {
+            let variables = if from_mal {
+                json!({ "malIds": chunk })
+            } else {
+                json!({ "ids": chunk })
+            };
+            let data = self.query(gql::MEDIA_IDS, variables).await?;
+            let media = data["Page"]["media"]
+                .as_array()
+                .ok_or_else(|| Error::parse("anime IDs"))?;
+            pairs.extend(media.iter().filter_map(|m| {
+                let id = m["id"].as_i64()? as i32;
+                let mal = m["idMal"].as_i64()? as i32;
+                (id > 0 && mal > 0).then_some((id, mal))
+            }));
+        }
+        Ok(pairs)
+    }
+
+    /// The ID of `username`'s list entry for `media_id`, if there is one.
+    pub async fn entry_id(&self, username: &str, media_id: i32) -> Result<Option<i64>> {
+        match self
+            .query(
+                gql::MEDIA_LIST_ID,
+                json!({ "userName": username, "mediaId": media_id }),
+            )
+            .await
+        {
+            Ok(data) => Ok(data["MediaList"]["id"].as_i64().filter(|&id| id > 0)),
+            Err(Error::Api { status: 404, .. }) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
     /// Runs a query and returns its `data`.
     async fn query(&self, document: &str, variables: Value) -> Result<Value> {
         let body = json!({ "query": with_fragments(document), "variables": variables });

@@ -33,8 +33,10 @@ pub mod gql {
         include_str!("../gql/anilist/DeleteMediaListEntry.gql");
     pub const MEDIA: &str = include_str!("../gql/anilist/Media.gql");
     pub const MEDIA_FRAGMENT: &str = include_str!("../gql/anilist/MediaFragment.gql");
+    pub const MEDIA_IDS: &str = include_str!("../gql/anilist/MediaIds.gql");
     pub const MEDIA_LIST_COLLECTION: &str = include_str!("../gql/anilist/MediaListCollection.gql");
     pub const MEDIA_LIST_FRAGMENT: &str = include_str!("../gql/anilist/MediaListFragment.gql");
+    pub const MEDIA_LIST_ID: &str = include_str!("../gql/anilist/MediaListId.gql");
     pub const MEDIA_SEARCH: &str = include_str!("../gql/anilist/MediaSearch.gql");
     pub const SAVE_MEDIA_LIST_ENTRY: &str = include_str!("../gql/anilist/SaveMediaListEntry.gql");
     pub const VIEWER: &str = include_str!("../gql/anilist/Viewer.gql");

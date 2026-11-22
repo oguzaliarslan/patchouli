@@ -10,7 +10,7 @@ use crate::{Error, Result};
 
 type Migration = fn(&Transaction) -> rusqlite::Result<()>;
 
-const MIGRATIONS: &[Migration] = &[taiga_schema, key_anime_list_by_media_id];
+const MIGRATIONS: &[Migration] = &[taiga_schema, key_anime_list_by_media_id, mirroring];
 
 /// Schema version after all migrations have run.
 pub const SCHEMA_VERSION: i64 = MIGRATIONS.len() as i64;
@@ -91,6 +91,27 @@ fn key_anime_list_by_media_id(tx: &Transaction) -> rusqlite::Result<()> {
            ORDER BY rowid;
          DROP TABLE anime_list;
          ALTER TABLE anime_list_new RENAME TO anime_list;",
+    )
+}
+
+/// 3: Copying changes to a second service: its queue, and anime IDs matched
+/// between services.
+fn mirroring(tx: &Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "CREATE TABLE IF NOT EXISTS mirror_queue(
+           anime_id INTEGER PRIMARY KEY,
+           dirty INTEGER NOT NULL DEFAULT 0,
+           time INTEGER NOT NULL,
+           retry_count INTEGER NOT NULL DEFAULT 0,
+           last_error TEXT
+         );
+         CREATE TABLE IF NOT EXISTS id_map(
+           service TEXT NOT NULL,
+           anime_id INTEGER NOT NULL,
+           target TEXT NOT NULL,
+           target_id INTEGER NOT NULL,
+           PRIMARY KEY (service, anime_id, target)
+         );",
     )
 }
 

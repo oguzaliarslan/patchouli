@@ -1,4 +1,7 @@
 //! Pending list updates (`queue` table), oldest first.
+//!
+//! [`mirror`] has the same functions for `mirror_queue`: changes waiting to be
+//! copied to the second service.
 
 use patchouli_core::{Fields, QueueItem};
 use rusqlite::{Connection, OptionalExtension, Row, named_params};
@@ -7,27 +10,80 @@ use crate::Result;
 use crate::value::{int, int32, optional_text};
 
 const INSERT: &str = include_str!("../sql/insertQueue.sql");
+const TABLE: &str = "queue";
 
 pub fn all(conn: &Connection) -> Result<Vec<QueueItem>> {
-    let mut stmt = conn.prepare("SELECT * FROM queue ORDER BY time ASC")?;
+    all_in(conn, TABLE)
+}
+
+pub fn get(conn: &Connection, anime_id: i32) -> Result<Option<QueueItem>> {
+    get_in(conn, TABLE, anime_id)
+}
+
+/// Inserts or replaces the item for `item.anime_id`.
+pub fn upsert(conn: &Connection, item: &QueueItem) -> Result<()> {
+    upsert_in(conn, INSERT, item)
+}
+
+pub fn remove(conn: &Connection, anime_id: i32) -> Result<bool> {
+    remove_in(conn, TABLE, anime_id)
+}
+
+pub fn clear(conn: &Connection) -> Result<()> {
+    clear_in(conn, TABLE)
+}
+
+/// Changes waiting to be copied to the second service (`mirror_queue`).
+pub mod mirror {
+    use patchouli_core::QueueItem;
+    use rusqlite::Connection;
+
+    use crate::Result;
+
+    const TABLE: &str = "mirror_queue";
+    const INSERT: &str = "INSERT OR REPLACE INTO mirror_queue(anime_id, dirty, time, retry_count, last_error) \
+         VALUES(:anime_id, :dirty, :time, :retry_count, :last_error)";
+
+    pub fn all(conn: &Connection) -> Result<Vec<QueueItem>> {
+        super::all_in(conn, TABLE)
+    }
+
+    pub fn get(conn: &Connection, anime_id: i32) -> Result<Option<QueueItem>> {
+        super::get_in(conn, TABLE, anime_id)
+    }
+
+    pub fn upsert(conn: &Connection, item: &QueueItem) -> Result<()> {
+        super::upsert_in(conn, INSERT, item)
+    }
+
+    pub fn remove(conn: &Connection, anime_id: i32) -> Result<bool> {
+        super::remove_in(conn, TABLE, anime_id)
+    }
+
+    pub fn clear(conn: &Connection) -> Result<()> {
+        super::clear_in(conn, TABLE)
+    }
+}
+
+fn all_in(conn: &Connection, table: &str) -> Result<Vec<QueueItem>> {
+    let mut stmt = conn.prepare(&format!("SELECT * FROM {table} ORDER BY time ASC"))?;
     let rows = stmt.query_map([], from_row)?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
 
-pub fn get(conn: &Connection, anime_id: i32) -> Result<Option<QueueItem>> {
+fn get_in(conn: &Connection, table: &str, anime_id: i32) -> Result<Option<QueueItem>> {
     Ok(conn
         .query_row(
-            "SELECT * FROM queue WHERE anime_id = ?1",
+            &format!("SELECT * FROM {table} WHERE anime_id = ?1"),
             [anime_id],
             from_row,
         )
         .optional()?)
 }
 
-/// Inserts or replaces the item for `item.anime_id`.
-pub fn upsert(conn: &Connection, item: &QueueItem) -> Result<()> {
+fn upsert_in(conn: &Connection, insert: &str, item: &QueueItem) -> Result<()> {
     conn.execute(
-        INSERT,
+        insert,
         named_params! {
             ":anime_id": item.anime_id,
             ":dirty": item.dirty.bits(),
@@ -39,12 +95,15 @@ pub fn upsert(conn: &Connection, item: &QueueItem) -> Result<()> {
     Ok(())
 }
 
-pub fn remove(conn: &Connection, anime_id: i32) -> Result<bool> {
-    Ok(conn.execute("DELETE FROM queue WHERE anime_id = ?1", [anime_id])? > 0)
+fn remove_in(conn: &Connection, table: &str, anime_id: i32) -> Result<bool> {
+    Ok(conn.execute(
+        &format!("DELETE FROM {table} WHERE anime_id = ?1"),
+        [anime_id],
+    )? > 0)
 }
 
-pub fn clear(conn: &Connection) -> Result<()> {
-    conn.execute("DELETE FROM queue", [])?;
+fn clear_in(conn: &Connection, table: &str) -> Result<()> {
+    conn.execute(&format!("DELETE FROM {table}"), [])?;
     Ok(())
 }
 
@@ -94,5 +153,20 @@ mod tests {
         assert!(remove(&conn, 2).unwrap());
         clear(&conn).unwrap();
         assert!(all(&conn).unwrap().is_empty());
+    }
+
+    #[test]
+    fn mirror_queue_is_separate() {
+        let conn = open_in_memory().unwrap();
+        let item = QueueItem {
+            anime_id: 1,
+            time: 100,
+            ..QueueItem::default()
+        };
+        mirror::upsert(&conn, &item).unwrap();
+        assert!(all(&conn).unwrap().is_empty());
+        assert_eq!(mirror::get(&conn, 1).unwrap(), Some(item));
+        assert!(mirror::remove(&conn, 1).unwrap());
+        assert!(mirror::all(&conn).unwrap().is_empty());
     }
 }
