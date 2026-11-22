@@ -174,6 +174,9 @@ pub struct Settings {
     /// Notify when something plays that isn't recognised.
     #[serde(rename = "track.notify.notRecognized")]
     pub notify_not_recognized: bool,
+    /// Notify when a new episode of something you're watching airs.
+    #[serde(rename = "track.notify.airing")]
+    pub notify_airing: bool,
 
     #[serde(rename = "track.update.delay")]
     pub update_delay_secs: u32,
@@ -269,6 +272,7 @@ impl Default for Settings {
             streaming_detection_enabled: false,
             notify_recognized: true,
             notify_not_recognized: true,
+            notify_airing: true,
             update_delay_secs: 120,
             update_library_only: false,
             update_pause_when_unfocused: false,

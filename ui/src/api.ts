@@ -53,6 +53,7 @@ export interface Settings {
   "track.detection.streaming.enabled": boolean;
   "track.notify.recognized": boolean;
   "track.notify.notRecognized": boolean;
+  "track.notify.airing": boolean;
   "track.update.delay": number;
   "track.update.libraryOnly": boolean;
   "track.update.pauseWhenUnfocused": boolean;

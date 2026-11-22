@@ -4,6 +4,7 @@ import type { MenuState } from "../components/ContextMenu";
 export type Page =
   | "home"
   | "list"
+  | "schedule"
   | "search"
   | "seasons"
   | "history"

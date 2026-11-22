@@ -29,7 +29,7 @@ const LIST_PAGE_LIMIT: u32 = 1000;
 const SEARCH_PAGE_LIMIT: u32 = 100;
 const SEASON_PAGE_LIMIT: u32 = 500;
 
-const ANIME_FIELDS: &str = "alternative_titles,average_episode_duration,end_date,genres,id,\
+const ANIME_FIELDS: &str = "alternative_titles,average_episode_duration,broadcast,end_date,genres,id,\
     main_picture,mean,media_type,num_episodes,popularity,rating,start_date,status,studios,\
     synopsis,title";
 const LIST_STATUS_FIELDS: &str = "comments,finish_date,is_rewatching,num_times_rewatched,\

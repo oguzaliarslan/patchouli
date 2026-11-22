@@ -5,6 +5,7 @@ import { api, errorMessage, type ListItem, type ListStatus } from "../api";
 import { Icon } from "../components/Icon";
 import { Poster } from "../components/Poster";
 import { Progress } from "../components/Progress";
+import { airingBadge, followsAiring, nextAiring, useNow } from "../lib/airing";
 import { availability, useAvailable } from "../lib/available";
 import { useApp, type AppActions } from "../lib/context";
 import { withEpisodeWatched } from "../lib/entries";
@@ -361,6 +362,7 @@ function ListTable({
   const scroller = useRef<HTMLDivElement>(null);
   const { data: available } = useAvailable();
   const highlight = useSettings().data?.["app.list.highlightNewEpisodes"] ?? true;
+  const now = useNow();
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scroller.current,
@@ -416,6 +418,7 @@ function ListTable({
             const total = item.anime?.episodeCount ?? 0;
             const title = itemTitle(item, language);
             const onDisk = availability(item, available);
+            const airing = followsAiring(item) ? nextAiring(item) : null;
             return (
               <div
                 key={id}
@@ -435,6 +438,11 @@ function ListTable({
                   {highlight && onDisk.next != null && (
                     <span className="badge ok" title={`Episode ${onDisk.next} is in your library`}>
                       Ep {onDisk.next} on disk
+                    </span>
+                  )}
+                  {airing && (
+                    <span className="badge" title={`Episode ${airing.episode}: ${new Date(airing.time * 1000).toLocaleString()}`}>
+                      {airingBadge(airing, now)}
                     </span>
                   )}
                   {item.entry.rewatching && <span className="badge">rewatching</span>}
@@ -523,6 +531,7 @@ function ListCards({
   const rowCount = Math.ceil(rows.length / perRow);
   const { data: available } = useAvailable();
   const highlight = useSettings().data?.["app.list.highlightNewEpisodes"] ?? true;
+  const now = useNow();
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scroller.current,
@@ -542,6 +551,7 @@ function ListCards({
             {rows.slice(v.index * perRow, v.index * perRow + perRow).map((item) => {
               const title = itemTitle(item, language);
               const onDisk = availability(item, available);
+              const airing = followsAiring(item) ? nextAiring(item) : null;
               return (
                 <button
                   key={item.entry.animeId}
@@ -558,6 +568,7 @@ function ListCards({
                     {item.queued && " · unsent"}
                   </span>
                   {highlight && onDisk.next != null && <span className="badge ok">Ep {onDisk.next} on disk</span>}
+                  {airing && <span className="badge">{airingBadge(airing, now)}</span>}
                 </button>
               );
             })}

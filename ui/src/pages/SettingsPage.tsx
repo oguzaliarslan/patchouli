@@ -388,6 +388,12 @@ function RecognitionSection({ settings, change }: SectionProps) {
         checked={settings["track.notify.notRecognized"]}
         onChange={(v) => change("track.notify.notRecognized", v)}
       />
+      <Toggle
+        label="When a new episode airs"
+        description="For anime you're watching. Airing times come from your service."
+        checked={settings["track.notify.airing"]}
+        onChange={(v) => change("track.notify.airing", v)}
+      />
 
       <h3>Test a file name</h3>
       <RecognitionTester />

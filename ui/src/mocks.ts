@@ -68,7 +68,8 @@ function makeAnime(id: number): Anime {
     studios: ["Studio Sample"],
     tags: [],
     lastAiredEpisode: airing ? Math.floor(episodes / 2) : 0,
-    nextEpisodeTime: airing ? Math.floor(Date.now() / 1000) + 86400 * 3 : 0,
+    // Spread over the coming week; a few have just aired.
+    nextEpisodeTime: airing ? Math.floor(Date.now() / 1000) + Math.floor((r() * 7.2 - 0.2) * 86400) : 0,
   };
 }
 
@@ -148,6 +149,7 @@ let settings: Settings = {
   "track.detection.streaming.enabled": false,
   "track.notify.recognized": true,
   "track.notify.notRecognized": true,
+  "track.notify.airing": true,
   "track.update.delay": 120,
   "track.update.libraryOnly": false,
   "track.update.pauseWhenUnfocused": false,

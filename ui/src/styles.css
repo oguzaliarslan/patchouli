@@ -1809,3 +1809,29 @@ dd {
 .grid-row .col-title .badge {
   margin-left: 0;
 }
+
+/* Schedule ----------------------------------------------------------------- */
+
+.schedule-list li {
+  grid-template-columns: 60px 32px 1fr auto;
+}
+
+.poster.tiny {
+  width: 32px;
+  border-radius: 4px;
+}
+
+.poster.tiny .poster-fallback {
+  font-size: 13px;
+}
+
+.schedule-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.schedule-title .history-title {
+  align-self: flex-start;
+  max-width: 100%;
+}

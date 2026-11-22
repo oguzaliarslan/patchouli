@@ -1,3 +1,4 @@
+mod airing;
 mod available;
 mod credentials;
 mod error;
@@ -52,6 +53,7 @@ pub(crate) struct AppState {
     sharing: Sharing,
     torrents: torrents::Torrents,
     available: available::Available,
+    airing: airing::Airing,
     updates: update::Updates,
     /// Held while a login is in progress.
     login: tokio::sync::Mutex<()>,
@@ -201,6 +203,7 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         sharing,
         torrents,
         available: available::Available::default(),
+        airing: airing::Airing::default(),
         updates: update::Updates::default(),
         login: tokio::sync::Mutex::new(()),
     })
@@ -274,6 +277,7 @@ pub fn run() {
             tracking::start(app.handle());
             torrents::start(app.handle());
             available::start(app.handle());
+            airing::start(app.handle());
             update::start(app.handle());
             resources::start(app.handle());
             Ok(())

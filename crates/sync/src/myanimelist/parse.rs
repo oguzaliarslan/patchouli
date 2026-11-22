@@ -105,8 +105,70 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
     era * 146_097 + doe - 719_468
 }
 
+/// Japan has no daylight saving time.
+const JST_OFFSET: i64 = 9 * 3600;
+const DAY: i64 = 86_400;
+const WEEK: i64 = 7 * DAY;
+
+/// The next airing after `now` from the weekly `broadcast` slot (Japan time),
+/// and that episode's number, counted in weeks from the start date (0 if the
+/// start date isn't exact). `None` without a slot, or once the last episode
+/// has aired.
+fn next_broadcast(json: &Value, start: FuzzyDate, status: Status, now: i64) -> Option<(i64, i32)> {
+    if !matches!(status, Status::Airing | Status::NotYetAired) {
+        return None;
+    }
+    let broadcast = &json["broadcast"];
+    // Monday is 0.
+    let weekday: i64 = match broadcast["day_of_the_week"].as_str()? {
+        "monday" => 0,
+        "tuesday" => 1,
+        "wednesday" => 2,
+        "thursday" => 3,
+        "friday" => 4,
+        "saturday" => 5,
+        "sunday" => 6,
+        _ => return None,
+    };
+    let time = broadcast["start_time"].as_str().unwrap_or("00:00");
+    let (h, m) = time.split_once(':')?;
+    let seconds = h.parse::<i64>().ok()? * 3600 + m.parse::<i64>().ok()? * 60;
+    // The first slot on or after `day` (days since 1970-01-01, a Thursday).
+    let slot = |day: i64| {
+        let day = day + (weekday - (day + 3).rem_euclid(7)).rem_euclid(7);
+        day * DAY + seconds - JST_OFFSET
+    };
+    let mut next = slot((now + JST_OFFSET).div_euclid(DAY));
+    if next <= now {
+        next += WEEK;
+    }
+    let first = (start.year > 0 && start.month > 0 && start.day > 0).then(|| {
+        slot(days_from_civil(
+            i64::from(start.year),
+            i64::from(start.month),
+            i64::from(start.day),
+        ))
+    });
+    let episode = match first {
+        Some(first) if first > now => return (status == Status::NotYetAired).then_some((first, 1)),
+        Some(first) => ((next - first) / WEEK + 1) as i32,
+        None if status == Status::NotYetAired => return None,
+        None => 0,
+    };
+    let total = int32(&json["num_episodes"]);
+    if total > 0 && episode > total {
+        return None;
+    }
+    Some((next, episode))
+}
+
 /// Parses an anime `node`. `None` if it has no ID.
 pub fn parse_anime(json: &Value) -> Option<Anime> {
+    parse_anime_at(json, crate::now())
+}
+
+/// [`parse_anime`], working out the next airing from `now`.
+fn parse_anime_at(json: &Value, now: i64) -> Option<Anime> {
     let id = int32(&json["id"]);
     if id == 0 {
         return None;
@@ -122,16 +184,20 @@ pub fn parse_anime(json: &Value) -> Option<Anime> {
             .map(str::to_owned)
             .collect()
     };
+    let status = status(json["status"].as_str().unwrap_or_default());
+    let date_started = fuzzy_date(&json["start_date"]);
+    let (next_episode_time, next_episode) =
+        next_broadcast(json, date_started, status, now).unwrap_or_default();
     Some(Anime {
         id,
-        last_modified: crate::now(),
+        last_modified: now,
         episode_count: int32(&json["num_episodes"]),
         // Seconds to minutes.
         episode_length: int32(&json["average_episode_duration"]) / 60,
         age_rating: age_rating(json["rating"].as_str().unwrap_or_default()),
-        status: status(json["status"].as_str().unwrap_or_default()),
+        status,
         r#type: media_type(json["media_type"].as_str().unwrap_or_default()),
-        date_started: fuzzy_date(&json["start_date"]),
+        date_started,
         date_finished: fuzzy_date(&json["end_date"]),
         score: json["mean"].as_f64().unwrap_or_default() as f32,
         popularity_rank: int32(&json["popularity"]),
@@ -152,6 +218,8 @@ pub fn parse_anime(json: &Value) -> Option<Anime> {
         },
         genres: names(&json["genres"]),
         studios: names(&json["studios"]),
+        last_aired_episode: (next_episode - 1).max(0),
+        next_episode_time,
         ..Anime::default()
     })
 }
@@ -218,6 +286,56 @@ mod tests {
         assert_eq!(anime.genres, ["Action"]);
         assert_eq!(anime.studios, ["Toei Animation"]);
         assert_eq!(anime.image_url, "l.jpg");
+    }
+
+    #[test]
+    fn works_out_next_broadcast() {
+        // Saturday 2024-11-16 00:00 UTC is 09:00 in Japan.
+        let now = timestamp("2024-11-16T00:00:00Z");
+        let mut json = json!({
+            "id": 52991,
+            "status": "currently_airing",
+            "start_date": "2024-10-05",
+            "num_episodes": 12,
+            "broadcast": { "day_of_the_week": "saturday", "start_time": "23:00" }
+        });
+        let anime = parse_anime_at(&json, now).unwrap();
+        // Saturday 23:00 in Japan, the seventh Saturday from Oct 5.
+        assert_eq!(
+            anime.next_episode_time,
+            timestamp("2024-11-16T23:00:00+09:00")
+        );
+        assert_eq!(anime.last_aired_episode, 6);
+
+        // Just after the slot, the next one is a week later.
+        let later = timestamp("2024-11-16T23:01:00+09:00");
+        let anime = parse_anime_at(&json, later).unwrap();
+        assert_eq!(
+            anime.next_episode_time,
+            timestamp("2024-11-23T23:00:00+09:00")
+        );
+        assert_eq!(anime.last_aired_episode, 7);
+
+        // Past the last episode.
+        json["num_episodes"] = 6.into();
+        assert_eq!(parse_anime_at(&json, now).unwrap().next_episode_time, 0);
+
+        // Not yet aired: the first slot is episode 1.
+        json["status"] = "not_yet_aired".into();
+        json["start_date"] = "2025-01-04".into();
+        let anime = parse_anime_at(&json, now).unwrap();
+        assert_eq!(
+            anime.next_episode_time,
+            timestamp("2025-01-04T23:00:00+09:00")
+        );
+        assert_eq!(anime.last_aired_episode, 0);
+
+        // Finished, or no slot.
+        json["status"] = "finished_airing".into();
+        assert_eq!(parse_anime_at(&json, now).unwrap().next_episode_time, 0);
+        json["status"] = "currently_airing".into();
+        json["broadcast"] = Value::Null;
+        assert_eq!(parse_anime_at(&json, now).unwrap().next_episode_time, 0);
     }
 
     #[test]

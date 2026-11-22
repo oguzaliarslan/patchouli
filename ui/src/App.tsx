@@ -19,6 +19,7 @@ import { HomePage } from "./pages/HomePage";
 import { LibraryPage } from "./pages/LibraryPage";
 import { ListPage } from "./pages/ListPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { SchedulePage } from "./pages/SchedulePage";
 import { SearchPage } from "./pages/SearchPage";
 import { SeasonsPage } from "./pages/SeasonsPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -32,6 +33,7 @@ const NAV: { label: string; items: NavItem[] }[] = [
     items: [
       { id: "home", label: "Home", icon: "home" },
       { id: "list", label: "Anime List", icon: "list" },
+      { id: "schedule", label: "Schedule", icon: "clock" },
       { id: "history", label: "History", icon: "history" },
     ],
   },
@@ -130,6 +132,7 @@ export default function App() {
         <main className="content">
           {page === "home" && <HomePage sync={sync} />}
           {page === "list" && <ListPage />}
+          {page === "schedule" && <SchedulePage />}
           {page === "search" && <SearchPage />}
           {page === "history" && <HistoryPage />}
           {page === "library" && <LibraryPage />}
