@@ -23,7 +23,7 @@ use crate::error::{CommandError, CommandResult};
 
 /// Event carrying the examined [`Feed`].
 pub const TORRENTS_EVENT: &str = "torrents";
-const ARCHIVE_FILE: &str = "feed_archive.json";
+pub const ARCHIVE_FILE: &str = "feed_archive.json";
 
 pub struct Torrents {
     /// The last feed as fetched, before filtering, so filters can be rerun.

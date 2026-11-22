@@ -49,6 +49,8 @@ Player detection on Linux uses MPRIS (mpv needs the `mpv-mpris` script), and on 
 
 Data (`media.sqlite`, `settings.json`, `accounts.json`) goes in `%APPDATA%\app.tracker.desktop`. To run in portable mode, put an empty file named `portable` next to the executable, and data goes in `data\` beside it instead.
 
+Once a day, Patchouli copies the database, settings, accounts file and torrent archive to a dated folder in `backups\` inside the data folder, and keeps the last 7 (*Settings › Advanced › Backups*). Restoring one backs up the current data first, then restarts Patchouli with the backup in place.
+
 ## Marking episodes watched by playback position
 
 mpv, MPC-HC, MPC-BE and VLC can report how far into the episode you are. With **Settings › Recognition › Use the playback position** on (the default), an episode in one of these players counts as watched once playback reaches the set percentage (85% by default), however long that took. Other players, and these when Patchouli can't reach them, use the timer.

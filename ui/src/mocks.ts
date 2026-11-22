@@ -117,6 +117,8 @@ for (const e of [...entries.values()].filter((e) => e.status === "Watching").sli
 history.sort((a, b) => a.time - b.time);
 
 let settings: Settings = {
+  "app.backup.enabled": true,
+  "app.backup.keep": 7,
   "app.checkForUpdates": true,
   "app.closeToTray": true,
   "app.list.highlightNewEpisodes": true,
@@ -278,6 +280,16 @@ function accountStatus(): AccountStatus[] {
   }));
 }
 
+let backups = [1, 2, 3].map((daysAgo) => {
+  const d = new Date(Date.now() - daysAgo * 86_400_000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return {
+    name: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_090000`,
+    time: Math.floor(d.getTime() / 1000),
+    size: 2_300_000 + daysAgo * 1000,
+  };
+});
+
 const dismissedSuggestions = new Set<number>();
 
 /** Anime from the catalog that aren't in the list, for suggestions. */
@@ -414,6 +426,25 @@ export function installMocks() {
         case "discover_refresh":
           await sleep(800);
           return listItems().filter((i) => i.entry.status === "Completed").length;
+        case "backups_get":
+          return backups;
+        case "backup_now": {
+          const d = new Date();
+          const p = (n: number) => String(n).padStart(2, "0");
+          const backup = {
+            name: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`,
+            time: now(),
+            size: 2_400_000,
+          };
+          backups = [backup, ...backups].slice(0, settings["app.backup.keep"]);
+          return backup;
+        }
+        case "backup_open_folder":
+          return null;
+        case "backup_restore":
+          await sleep(500);
+          window.location.reload();
+          return null;
         case "mirror_status":
           return mirrorStatus();
         case "mirror_copy_all":

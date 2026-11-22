@@ -1923,3 +1923,23 @@ dd {
   font: inherit;
   text-transform: none;
 }
+
+.backup-list {
+  margin-bottom: 12px;
+}
+
+.backup-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Long paths wrap instead of widening the settings page. */
+.field code {
+  overflow-wrap: anywhere;
+}
+
+.settings-layout {
+  grid-template-columns: 180px minmax(0, 1fr);
+}

@@ -867,6 +867,93 @@ function TaigaImport() {
   );
 }
 
+function formatSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function BackupSettings({ settings, change }: SectionProps) {
+  const app = useApp();
+  const { data: backups = [], refetch } = useQuery({ queryKey: ["backups"], queryFn: api.backups });
+  const backUp = useMutation({
+    mutationFn: api.backupNow,
+    onSuccess: () => app.notify("Backed up."),
+    onError: (e) => app.notify(errorMessage(e)),
+    onSettled: () => void refetch(),
+  });
+
+  async function restore(name: string, time: number) {
+    const when = new Date(time * 1000).toLocaleString();
+    const ok = await confirmAction(
+      `Restore the backup from ${when}? Your list, history, unsent changes and settings go back to how they were ` +
+        "then. The current data is backed up first, and Patchouli restarts.",
+      "Restore backup",
+      "Restore and restart",
+    );
+    if (!ok) return;
+    try {
+      await api.restoreBackup(name);
+    } catch (e) {
+      app.notify(errorMessage(e));
+    }
+  }
+
+  return (
+    <>
+      <h3>Backups</h3>
+      <p className="muted small">
+        Copies of your list database, settings and torrent archive. They hold unsent changes and history that your
+        service doesn't have.
+      </p>
+      <Toggle
+        label="Back up once a day"
+        checked={settings["app.backup.enabled"]}
+        onChange={(v) => change("app.backup.enabled", v)}
+      />
+      <Field label="Keep" htmlFor="backup-keep">
+        <span className="inline">
+          <input
+            id="backup-keep"
+            type="number"
+            min={1}
+            max={100}
+            className="narrow"
+            value={settings["app.backup.keep"]}
+            onChange={(e) => {
+              const value = Number.parseInt(e.target.value, 10);
+              if (value >= 1 && value <= 100) change("app.backup.keep", value);
+            }}
+          />
+          <span className="muted">backups</span>
+        </span>
+      </Field>
+      {backups.length > 0 ? (
+        <ul className="folder-list backup-list">
+          {backups.map((b) => (
+            <li key={b.name}>
+              <span>
+                {new Date(b.time * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}{" "}
+                <span className="muted small">{formatSize(b.size)}</span>
+              </span>
+              <button onClick={() => void restore(b.name, b.time)}>Restore…</button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="empty">No backups yet.</p>
+      )}
+      <span className="inline">
+        <button disabled={backUp.isPending} onClick={() => backUp.mutate()}>
+          {backUp.isPending ? "Backing up…" : "Back up now"}
+        </button>
+        <button onClick={() => void api.openBackupFolder().catch((e) => app.notify(errorMessage(e)))}>
+          Open folder
+        </button>
+      </span>
+    </>
+  );
+}
+
 function AdvancedSection({ settings, change }: SectionProps) {
   const { data: info } = useAppInfo();
   const port = settings["network.proxy.port"];
@@ -890,6 +977,8 @@ function AdvancedSection({ settings, change }: SectionProps) {
           <span className="muted">seconds</span>
         </span>
       </Field>
+
+      <BackupSettings settings={settings} change={change} />
 
       <h3>Proxy</h3>
       <p className="muted small">

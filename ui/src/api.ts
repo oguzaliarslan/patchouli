@@ -20,6 +20,8 @@ export interface AppInfo {
  * Unknown keys are kept, so always send back the whole object.
  */
 export interface Settings {
+  "app.backup.enabled": boolean;
+  "app.backup.keep": number;
   "app.checkForUpdates": boolean;
   "app.closeToTray": boolean;
   "app.list.highlightNewEpisodes": boolean;
@@ -121,6 +123,15 @@ export interface RecommendationGroup {
   becauseId: number;
   becauseTitle: string;
   items: Anime[];
+}
+
+export interface BackupInfo {
+  /** Local time, `2026-11-22_093000`. */
+  name: string;
+  /** Unix seconds. */
+  time: number;
+  /** Bytes. */
+  size: number;
 }
 
 export interface MirrorStatus {
@@ -521,6 +532,11 @@ export const api = {
   login: (service: ServiceId, replaceLocal = false, mirror = false) =>
     invoke<AccountStatus>("account_login", { service, replaceLocal, mirror }),
   mirrorStatus: () => invoke<MirrorStatus>("mirror_status"),
+  backups: () => invoke<BackupInfo[]>("backups_get"),
+  backupNow: () => invoke<BackupInfo>("backup_now"),
+  openBackupFolder: () => invoke<void>("backup_open_folder"),
+  /** Backs up the current data, then restarts with backup `name`. */
+  restoreBackup: (name: string) => invoke<void>("backup_restore", { name }),
   /** Sequels of completed anime that aren't in the list. */
   sequels: () => invoke<Suggestion[]>("sequels_get"),
   recommendations: () => invoke<RecommendationGroup[]>("recommendations_get"),

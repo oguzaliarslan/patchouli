@@ -1,5 +1,6 @@
 mod airing;
 mod available;
+mod backup;
 mod credentials;
 mod discover;
 mod error;
@@ -107,6 +108,7 @@ fn settings_set(state: State<'_, AppState>, settings: Settings) -> CommandResult
 fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
     let data_dir = paths::data_dir(app)?;
     std::fs::create_dir_all(&data_dir.path)?;
+    backup::apply_pending_restore(&data_dir.path);
     let version = app.package_info().version.to_string();
 
     let recognition = Arc::new(RecognitionCache::new(
@@ -287,6 +289,7 @@ pub fn run() {
             torrents::start(app.handle());
             available::start(app.handle());
             airing::start(app.handle());
+            backup::start(app.handle());
             discover::start(app.handle());
             update::start(app.handle());
             resources::start(app.handle());
@@ -309,6 +312,10 @@ pub fn run() {
             sync::mirror_copy_all,
             sync::mirror_dismiss_failed,
             discover::sequels_get,
+            backup::backups_get,
+            backup::backup_now,
+            backup::backup_open_folder,
+            backup::backup_restore,
             discover::recommendations_get,
             discover::suggestion_dismiss,
             discover::discover_refresh,

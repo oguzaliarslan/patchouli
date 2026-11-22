@@ -89,6 +89,12 @@ pub const DEFAULT_TORRENT_SEARCH: &str = "https://nyaa.si/?page=rss&c=1_2&f=0&q=
 #[serde(default)]
 pub struct Settings {
     /// Check GitHub Releases for a new version on start.
+    /// Copy the local data to `backups/` once a day.
+    #[serde(rename = "app.backup.enabled")]
+    pub app_backup_enabled: bool,
+    /// How many backups to keep.
+    #[serde(rename = "app.backup.keep")]
+    pub app_backup_keep: u32,
     #[serde(rename = "app.checkForUpdates")]
     pub app_check_for_updates: bool,
     #[serde(rename = "app.closeToTray")]
@@ -258,6 +264,8 @@ impl Default for Settings {
     /// Taiga's defaults.
     fn default() -> Self {
         Self {
+            app_backup_enabled: true,
+            app_backup_keep: 7,
             app_check_for_updates: true,
             app_close_to_tray: true,
             list_highlight_new_episodes: true,
