@@ -1864,3 +1864,57 @@ dd {
 .account .inline button {
   white-space: nowrap;
 }
+
+/* Suggestions -------------------------------------------------------------- */
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.suggest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.suggest-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.suggest-open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: inherit;
+}
+
+.suggest-open:hover .poster {
+  outline: 2px solid var(--accent-border);
+}
+
+.suggest-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.suggest-actions > button:first-child {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+}

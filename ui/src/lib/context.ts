@@ -7,6 +7,7 @@ export type Page =
   | "schedule"
   | "search"
   | "seasons"
+  | "sequels"
   | "history"
   | "library"
   | "torrents"

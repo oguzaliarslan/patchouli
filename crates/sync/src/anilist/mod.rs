@@ -11,7 +11,7 @@ use patchouli_core::{Anime, Fields, FuzzyDate, ListEntry, ListStatus, SeasonName
 use serde_json::{Value, json};
 
 use crate::accounts::Account;
-use crate::client::{RemoteList, SavedEntry};
+use crate::client::{Related, RemoteList, SavedEntry};
 use crate::search::{SearchParams, SearchSort};
 use crate::{Error, Result, gql, http};
 
@@ -208,6 +208,18 @@ impl AniList {
         }
     }
 
+    pub async fn related(&self, ids: &[i32]) -> Result<Vec<Related>> {
+        let mut result = Vec::new();
+        for chunk in ids.chunks(50) {
+            let data = self.query(gql::RELATED, json!({ "ids": chunk })).await?;
+            let media = data["Page"]["media"]
+                .as_array()
+                .ok_or_else(|| Error::parse("related anime"))?;
+            result.extend(media.iter().filter_map(parse_related));
+        }
+        Ok(result)
+    }
+
     /// Runs a query and returns its `data`.
     async fn query(&self, document: &str, variables: Value) -> Result<Value> {
         let body = json!({ "query": with_fragments(document), "variables": variables });
@@ -248,6 +260,29 @@ impl AniList {
 }
 
 /// Appends the fragments a document uses.
+fn parse_related(media: &Value) -> Option<Related> {
+    let anime_id = media["id"].as_i64()? as i32;
+    let sequels = media["relations"]["edges"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|e| e["relationType"] == "SEQUEL" && e["node"]["type"] == "ANIME")
+        .filter_map(|e| parse_media(&e["node"]))
+        .collect();
+    let recommendations = media["recommendations"]["nodes"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|n| n["rating"].as_i64().unwrap_or_default() > 0)
+        .filter_map(|n| parse_media(&n["mediaRecommendation"]))
+        .collect();
+    Some(Related {
+        anime_id,
+        sequels,
+        recommendations,
+    })
+}
+
 fn with_fragments(document: &str) -> String {
     let mut query = document.to_owned();
     for (name, fragment) in [
@@ -405,6 +440,37 @@ fn media_status(status: Status) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_sequels_and_recommendations() {
+        let media = json!({
+            "id": 1,
+            "relations": { "edges": [
+                { "relationType": "SEQUEL", "node": { "id": 2, "type": "ANIME", "title": { "romaji": "S2" } } },
+                { "relationType": "SEQUEL", "node": { "id": 3, "type": "MANGA", "title": { "romaji": "Manga" } } },
+                { "relationType": "PREQUEL", "node": { "id": 4, "type": "ANIME", "title": { "romaji": "S0" } } }
+            ] },
+            "recommendations": { "nodes": [
+                { "rating": 40, "mediaRecommendation": { "id": 5, "title": { "romaji": "Liked" } } },
+                { "rating": -2, "mediaRecommendation": { "id": 6, "title": { "romaji": "Disliked" } } },
+                { "rating": 3, "mediaRecommendation": null }
+            ] }
+        });
+        let related = parse_related(&media).unwrap();
+        assert_eq!(related.anime_id, 1);
+        assert_eq!(
+            related.sequels.iter().map(|a| a.id).collect::<Vec<_>>(),
+            [2]
+        );
+        assert_eq!(
+            related
+                .recommendations
+                .iter()
+                .map(|a| a.id)
+                .collect::<Vec<_>>(),
+            [5]
+        );
+    }
 
     #[test]
     fn appends_used_fragments() {

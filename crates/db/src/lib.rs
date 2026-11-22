@@ -21,6 +21,7 @@ pub mod list;
 pub mod meta;
 pub mod migrations;
 pub mod queue;
+pub mod related;
 mod value;
 
 /// File name Taiga uses for its database.
@@ -101,6 +102,8 @@ pub fn clear_service_data(conn: &Connection) -> Result<()> {
             "history",
             "queue",
             "mirror_queue",
+            "related",
+            "related_checked",
         ] {
             conn.execute(&format!("DELETE FROM {table}"), [])?;
         }
@@ -160,7 +163,9 @@ mod tests {
                 "id_map",
                 "meta",
                 "mirror_queue",
-                "queue"
+                "queue",
+                "related",
+                "related_checked"
             ]
         );
     }

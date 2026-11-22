@@ -21,7 +21,7 @@ pub mod oauth;
 mod search;
 
 pub use accounts::{Account, AccountsFile};
-pub use client::{Client, RemoteList, SavedEntry, anime_page_url};
+pub use client::{Client, Related, RemoteList, SavedEntry, anime_page_url};
 pub use credentials::{CredentialStore, Credentials, MemoryCredentialStore};
 pub use engine::{SyncEvent, Synchronizer};
 pub use error::{Error, Result};
@@ -38,6 +38,7 @@ pub mod gql {
     pub const MEDIA_LIST_FRAGMENT: &str = include_str!("../gql/anilist/MediaListFragment.gql");
     pub const MEDIA_LIST_ID: &str = include_str!("../gql/anilist/MediaListId.gql");
     pub const MEDIA_SEARCH: &str = include_str!("../gql/anilist/MediaSearch.gql");
+    pub const RELATED: &str = include_str!("../gql/anilist/Related.gql");
     pub const SAVE_MEDIA_LIST_ENTRY: &str = include_str!("../gql/anilist/SaveMediaListEntry.gql");
     pub const VIEWER: &str = include_str!("../gql/anilist/Viewer.gql");
 }

@@ -18,6 +18,9 @@ export const keys = {
   accounts: ["accounts"] as const,
   list: ["list"] as const,
   queue: ["queue"] as const,
+  discover: ["discover"] as const,
+  sequels: ["discover", "sequels"] as const,
+  recommendations: ["discover", "recommendations"] as const,
   /** Under `queue`, so queue events refresh it. */
   mirror: ["queue", "mirror"] as const,
   history: ["history"] as const,
@@ -57,7 +60,7 @@ export function useTracking() {
 
 /** Data that changes when the list or queue changes. */
 function invalidateListData() {
-  for (const key of [keys.list, keys.queue, keys.history, keys.info, ["anime"]]) {
+  for (const key of [keys.list, keys.queue, keys.history, keys.info, keys.discover, ["anime"]]) {
     void queryClient.invalidateQueries({ queryKey: key });
   }
 }
@@ -65,6 +68,8 @@ function invalidateListData() {
 export const useSettings = () => useQuery({ queryKey: keys.settings, queryFn: api.getSettings });
 export const useAccounts = () => useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
 export const useList = () => useQuery({ queryKey: keys.list, queryFn: api.list });
+export const useSequels = () => useQuery({ queryKey: keys.sequels, queryFn: api.sequels });
+export const useRecommendations = () => useQuery({ queryKey: keys.recommendations, queryFn: api.recommendations });
 export const useQueue = () => useQuery({ queryKey: keys.queue, queryFn: api.queue });
 export const useHistory = () => useQuery({ queryKey: keys.history, queryFn: api.history });
 export const useAppInfo = () => useQuery({ queryKey: keys.info, queryFn: api.appInfo });
@@ -153,6 +158,7 @@ export function useBackendEvents(): SyncState {
     });
     const torrents = api.onTorrents((feed) => queryClient.setQueryData(keys.torrents, feed));
     const available = api.onLibraryAvailable((map) => queryClient.setQueryData(keys.available, map));
+    const discover = api.onDiscoverChanged(() => void queryClient.invalidateQueries({ queryKey: keys.discover }));
     const settings = api.onSettingsChanged((changed) => {
       void queryClient.invalidateQueries({ queryKey: keys.settings });
       if (changed.includes("sync.service") || changed.includes("sync.mirror.enabled")) {
@@ -165,6 +171,7 @@ export function useBackendEvents(): SyncState {
       void settings.then((f) => f());
       void torrents.then((f) => f());
       void available.then((f) => f());
+      void discover.then((f) => f());
     };
   }, []);
 

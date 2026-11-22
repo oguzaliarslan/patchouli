@@ -104,6 +104,19 @@ export interface AccountStatus {
   mirrorConnected: boolean;
 }
 
+export interface Suggestion {
+  anime: Anime;
+  /** The anime in the list it's suggested because of. */
+  becauseId: number;
+  becauseTitle: string;
+}
+
+export interface RecommendationGroup {
+  becauseId: number;
+  becauseTitle: string;
+  items: Anime[];
+}
+
 export interface MirrorStatus {
   enabled: boolean;
   service: ServiceId;
@@ -498,6 +511,13 @@ export const api = {
   login: (service: ServiceId, replaceLocal = false, mirror = false) =>
     invoke<AccountStatus>("account_login", { service, replaceLocal, mirror }),
   mirrorStatus: () => invoke<MirrorStatus>("mirror_status"),
+  /** Sequels of completed anime that aren't in the list. */
+  sequels: () => invoke<Suggestion[]>("sequels_get"),
+  recommendations: () => invoke<RecommendationGroup[]>("recommendations_get"),
+  dismissSuggestion: (animeId: number) => invoke<void>("suggestion_dismiss", { animeId }),
+  /** Checks sequels and recommendations again; returns how many anime were checked. */
+  discoverRefresh: () => invoke<number>("discover_refresh"),
+  onDiscoverChanged: (handler: () => void): Promise<UnlistenFn> => listen("discover-changed", () => handler()),
   /** Queues the whole list to be copied; returns how many entries. */
   mirrorCopyAll: () => invoke<number>("mirror_copy_all"),
   mirrorDismissFailed: () => invoke<number>("mirror_dismiss_failed"),

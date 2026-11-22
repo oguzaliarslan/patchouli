@@ -273,6 +273,36 @@ function accountStatus(): AccountStatus[] {
   }));
 }
 
+const dismissedSuggestions = new Set<number>();
+
+/** Anime from the catalog that aren't in the list, for suggestions. */
+function notInList(from: number, count: number) {
+  return [...catalog.values()]
+    .filter((a) => a.id >= from && !entries.has(a.id) && !dismissedSuggestions.has(a.id))
+    .slice(0, count);
+}
+
+function sampleSequels() {
+  const completed = listItems().filter((i) => i.entry.status === "Completed");
+  return notInList(181, 14).map((anime, i) => ({
+    anime: i < 3 ? { ...anime, status: "Airing" } : i < 5 ? { ...anime, status: "NotYetAired", dateStarted: "2027-01-08" } : anime,
+    becauseId: completed[i % completed.length].entry.animeId,
+    becauseTitle: completed[i % completed.length].anime?.titles.romaji ?? "",
+  }));
+}
+
+function sampleRecommendations() {
+  const liked = listItems()
+    .filter((i) => i.entry.status === "Completed")
+    .sort((a, b) => b.entry.score - a.entry.score)
+    .slice(0, 3);
+  return liked.map((item, i) => ({
+    becauseId: item.entry.animeId,
+    becauseTitle: item.anime?.titles.romaji ?? "",
+    items: notInList(230 + i * 30, 6),
+  }));
+}
+
 /** Sample changes waiting to be copied to the second service. */
 let mirrorFailed = [
   { animeId: 7, title: "Sample Anime With No Match", error: "Not found on MyAnimeList." },
@@ -369,6 +399,16 @@ export function installMocks() {
             : { ...settings, "sync.service": service };
           return accountStatus().find((s) => s.service === service);
         }
+        case "sequels_get":
+          return sampleSequels();
+        case "recommendations_get":
+          return sampleRecommendations();
+        case "suggestion_dismiss":
+          dismissedSuggestions.add(a.animeId as number);
+          return null;
+        case "discover_refresh":
+          await sleep(800);
+          return listItems().filter((i) => i.entry.status === "Completed").length;
         case "mirror_status":
           return mirrorStatus();
         case "mirror_copy_all":

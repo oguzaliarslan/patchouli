@@ -10,7 +10,12 @@ use crate::{Error, Result};
 
 type Migration = fn(&Transaction) -> rusqlite::Result<()>;
 
-const MIGRATIONS: &[Migration] = &[taiga_schema, key_anime_list_by_media_id, mirroring];
+const MIGRATIONS: &[Migration] = &[
+    taiga_schema,
+    key_anime_list_by_media_id,
+    mirroring,
+    related_anime,
+];
 
 /// Schema version after all migrations have run.
 pub const SCHEMA_VERSION: i64 = MIGRATIONS.len() as i64;
@@ -111,6 +116,23 @@ fn mirroring(tx: &Transaction) -> rusqlite::Result<()> {
            target TEXT NOT NULL,
            target_id INTEGER NOT NULL,
            PRIMARY KEY (service, anime_id, target)
+         );",
+    )
+}
+
+/// 4: Sequels and recommendations of anime in the list.
+fn related_anime(tx: &Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "CREATE TABLE IF NOT EXISTS related(
+           anime_id INTEGER NOT NULL,
+           related_id INTEGER NOT NULL,
+           kind TEXT NOT NULL,
+           rank INTEGER NOT NULL DEFAULT 0,
+           PRIMARY KEY (anime_id, related_id, kind)
+         );
+         CREATE TABLE IF NOT EXISTS related_checked(
+           anime_id INTEGER PRIMARY KEY,
+           time INTEGER NOT NULL
          );",
     )
 }

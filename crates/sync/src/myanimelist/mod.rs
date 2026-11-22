@@ -14,7 +14,7 @@ use serde_json::Value;
 use tokio::sync::Mutex;
 
 use crate::accounts::Account;
-use crate::client::{RemoteList, SavedEntry};
+use crate::client::{Related, RemoteList, SavedEntry};
 use crate::credentials::{CredentialStore, Credentials};
 use crate::search::SearchParams;
 use crate::{Error, Result, http};
@@ -198,6 +198,49 @@ impl MyAnimeList {
         parse_anime(&json)
             .map(Some)
             .ok_or_else(|| Error::parse("anime"))
+    }
+
+    /// Sequels (fetched in full, for their airing status) and recommendations.
+    pub async fn related(&self, ids: &[i32]) -> Result<Vec<Related>> {
+        let mut result = Vec::new();
+        for &anime_id in ids {
+            let id = anime_id.to_string();
+            let json = match self
+                .get_json(
+                    &["anime", &id],
+                    &[("fields", "related_anime,recommendations")],
+                )
+                .await
+            {
+                Ok(json) => json,
+                Err(Error::Api { status: 404, .. }) => continue,
+                Err(e) => return Err(e),
+            };
+            let mut sequels = Vec::new();
+            for edge in json["related_anime"].as_array().into_iter().flatten() {
+                if edge["relation_type"] != "sequel" {
+                    continue;
+                }
+                let Some(sequel) = edge["node"]["id"].as_i64() else {
+                    continue;
+                };
+                if let Some(anime) = self.fetch_anime(sequel as i32).await? {
+                    sequels.push(anime);
+                }
+            }
+            let recommendations = json["recommendations"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|r| parse_anime(&r["node"]))
+                .collect();
+            result.push(Related {
+                anime_id,
+                sequels,
+                recommendations,
+            });
+        }
+        Ok(result)
     }
 
     /// Every anime of a season (MyAnimeList returns up to 500).

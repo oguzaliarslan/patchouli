@@ -1,11 +1,19 @@
 import { NowPlayingCard } from "../components/NowPlaying";
 import { Poster } from "../components/Poster";
 import { Progress } from "../components/Progress";
+import { SuggestionCard, airingText } from "../components/SuggestionCard";
 import { availability, useAvailable } from "../lib/available";
 import { useApp } from "../lib/context";
-import { episodesText, itemTitle, relativeTime } from "../lib/format";
+import { episodesText, isNsfw, itemTitle, relativeTime } from "../lib/format";
 import { useAnimeMenu } from "../lib/useAnimeMenu";
-import { useCurrentAccount, useList, useSettings, useTaigaDetection, type SyncState } from "../lib/queries";
+import {
+  useCurrentAccount,
+  useList,
+  useSequels,
+  useSettings,
+  useTaigaDetection,
+  type SyncState,
+} from "../lib/queries";
 import { dismissTaigaImport, importFromTaiga } from "../lib/taiga";
 
 export function HomePage({ sync }: { sync: SyncState }) {
@@ -18,6 +26,12 @@ export function HomePage({ sync }: { sync: SyncState }) {
   const highlight = settings?.["app.list.highlightNewEpisodes"] ?? true;
   const { data: taiga } = useTaigaDetection();
   const language = settings?.["app.titleLanguage"] ?? "romaji";
+  const hideNsfw = settings?.["app.hideNsfw"] ?? true;
+  const { data: allSequels = [] } = useSequels();
+  // Only what's airing or coming up: the Sequels page has the rest.
+  const sequels = allSequels.filter(
+    (s) => (s.anime.status === "Airing" || s.anime.status === "NotYetAired") && !(hideNsfw && isNsfw(s.anime)),
+  );
 
   const watching = items
     .filter((i) => i.entry.status === "Watching")
@@ -95,6 +109,26 @@ export function HomePage({ sync }: { sync: SyncState }) {
             );
           })}
         </div>
+      )}
+
+      {sequels.length > 0 && (
+        <>
+          <div className="section-head">
+            <h2 className="section-title">New seasons of what you finished</h2>
+            <button className="link" onClick={() => app.navigate("sequels")}>
+              All sequels
+            </button>
+          </div>
+          <div className="suggest-grid">
+            {sequels.slice(0, 6).map((s) => (
+              <SuggestionCard
+                key={s.anime.id}
+                anime={s.anime}
+                detail={`${airingText(s.anime)} · after ${s.becauseTitle}`}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

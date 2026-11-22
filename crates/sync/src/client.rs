@@ -21,6 +21,16 @@ pub struct SavedEntry {
     pub anime: Option<Anime>,
 }
 
+/// Sequels and recommendations of one anime.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Related {
+    pub anime_id: i32,
+    pub sequels: Vec<Anime>,
+    /// Most recommended first. From MyAnimeList these have only an ID, title
+    /// and picture.
+    pub recommendations: Vec<Anime>,
+}
+
 /// A logged-in client for one service.
 pub enum Client {
     AniList(AniList),
@@ -94,6 +104,15 @@ impl Client {
             ..ListEntry::default()
         })
         .await
+    }
+
+    /// Sequels and recommendations of `ids`. AniList answers 50 anime per
+    /// request; MyAnimeList needs one request per anime, plus one per sequel.
+    pub async fn related(&self, ids: &[i32]) -> Result<Vec<Related>> {
+        match self {
+            Self::AniList(c) => c.related(ids).await,
+            Self::MyAnimeList(c) => c.related(ids).await,
+        }
     }
 
     pub async fn search(&self, params: &SearchParams) -> Result<Vec<Anime>> {

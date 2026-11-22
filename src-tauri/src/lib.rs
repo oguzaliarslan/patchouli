@@ -1,6 +1,7 @@
 mod airing;
 mod available;
 mod credentials;
+mod discover;
 mod error;
 mod export;
 mod library;
@@ -54,6 +55,7 @@ pub(crate) struct AppState {
     torrents: torrents::Torrents,
     available: available::Available,
     airing: airing::Airing,
+    discover: discover::Discover,
     updates: update::Updates,
     /// Held while a login is in progress.
     login: tokio::sync::Mutex<()>,
@@ -209,6 +211,7 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
         torrents,
         available: available::Available::default(),
         airing: airing::Airing::default(),
+        discover: discover::Discover::default(),
         updates: update::Updates::default(),
         login: tokio::sync::Mutex::new(()),
     })
@@ -283,6 +286,7 @@ pub fn run() {
             torrents::start(app.handle());
             available::start(app.handle());
             airing::start(app.handle());
+            discover::start(app.handle());
             update::start(app.handle());
             resources::start(app.handle());
             Ok(())
@@ -303,6 +307,10 @@ pub fn run() {
             sync::mirror_status,
             sync::mirror_copy_all,
             sync::mirror_dismiss_failed,
+            discover::sequels_get,
+            discover::recommendations_get,
+            discover::suggestion_dismiss,
+            discover::discover_refresh,
             sync::anime_search,
             library::anime_get,
             library::anime_refresh,

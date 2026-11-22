@@ -22,6 +22,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { SchedulePage } from "./pages/SchedulePage";
 import { SearchPage } from "./pages/SearchPage";
 import { SeasonsPage } from "./pages/SeasonsPage";
+import { SequelsPage } from "./pages/SequelsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TorrentsPage } from "./pages/TorrentsPage";
 
@@ -42,6 +43,7 @@ const NAV: { label: string; items: NavItem[] }[] = [
     items: [
       { id: "search", label: "Search", icon: "search" },
       { id: "seasons", label: "Seasons", icon: "calendar" },
+      { id: "sequels", label: "Sequels", icon: "layers" },
       { id: "library", label: "Library", icon: "folder" },
       { id: "torrents", label: "Torrents", icon: "download" },
     ],
@@ -137,6 +139,7 @@ export default function App() {
           {page === "history" && <HistoryPage />}
           {page === "library" && <LibraryPage />}
           {page === "seasons" && <SeasonsPage />}
+          {page === "sequels" && <SequelsPage />}
           {page === "torrents" && <TorrentsPage />}
           {page === "profile" && <ProfilePage />}
           {page === "settings" && <SettingsPage />}
