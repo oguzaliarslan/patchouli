@@ -30,6 +30,9 @@ export interface Settings {
   "app.startWithWindows": boolean;
   "app.colorScheme": "system" | "light" | "dark";
   "app.hideNsfw": boolean;
+  /** System-wide shortcuts like `Ctrl+Alt+Shift+Up`; empty is off. */
+  "app.hotkeys.increment": string;
+  "app.hotkeys.toggleDetection": string;
   "app.startInTray": boolean;
   "app.titleLanguage": "romaji" | "english" | "native";
   "library.folders": string[];
@@ -132,6 +135,13 @@ export interface BackupInfo {
   time: number;
   /** Bytes. */
   size: number;
+}
+
+export interface HotkeyStatus {
+  action: "increment" | "toggleDetection";
+  accelerator: string;
+  /** Why it isn't registered, if it isn't. */
+  error: string | null;
 }
 
 export interface MirrorStatus {
@@ -533,6 +543,7 @@ export const api = {
     invoke<AccountStatus>("account_login", { service, replaceLocal, mirror }),
   mirrorStatus: () => invoke<MirrorStatus>("mirror_status"),
   backups: () => invoke<BackupInfo[]>("backups_get"),
+  hotkeys: () => invoke<HotkeyStatus[]>("hotkeys_get"),
   backupNow: () => invoke<BackupInfo>("backup_now"),
   openBackupFolder: () => invoke<void>("backup_open_folder"),
   /** Backs up the current data, then restarts with backup `name`. */

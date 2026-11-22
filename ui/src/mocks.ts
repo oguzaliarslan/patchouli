@@ -127,6 +127,8 @@ let settings: Settings = {
   "app.startWithWindows": false,
   "app.colorScheme": "system",
   "app.hideNsfw": true,
+  "app.hotkeys.increment": "Ctrl+Alt+Shift+Up",
+  "app.hotkeys.toggleDetection": "Ctrl+Alt+Shift+P",
   "app.startInTray": false,
   "app.titleLanguage": "romaji",
   "library.folders": ["D:\\Anime"],
@@ -426,6 +428,11 @@ export function installMocks() {
         case "discover_refresh":
           await sleep(800);
           return listItems().filter((i) => i.entry.status === "Completed").length;
+        case "hotkeys_get":
+          return [
+            { action: "increment", accelerator: settings["app.hotkeys.increment"], error: null },
+            { action: "toggleDetection", accelerator: settings["app.hotkeys.toggleDetection"], error: null },
+          ];
         case "backups_get":
           return backups;
         case "backup_now": {

@@ -91,6 +91,93 @@ export interface SectionProps {
   change: Change;
 }
 
+const KEY_NAMES: Record<string, string> = {
+  ArrowUp: "Up",
+  ArrowDown: "Down",
+  ArrowLeft: "Left",
+  ArrowRight: "Right",
+  " ": "Space",
+};
+
+/** `Ctrl+Alt+Shift+Up` from a key press, or null for a lone modifier. */
+function accelerator(e: Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey">) {
+  if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return null;
+  let key = KEY_NAMES[e.key] ?? e.key;
+  // Letters and digits by position, so Shift doesn't change them.
+  if (/^Key[A-Z]$/.test(e.code)) key = e.code.slice(3);
+  else if (/^Digit\d$/.test(e.code)) key = e.code.slice(5);
+  else if (key.length === 1) key = key.toUpperCase();
+  const parts = [e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift", e.metaKey && "Super", key];
+  return parts.filter(Boolean).join("+");
+}
+
+/** Records a shortcut: focus it and press the keys. */
+function ShortcutInput({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <span className="inline">
+      <input
+        id={id}
+        readOnly
+        className="shortcut-input"
+        value={value || "Off"}
+        onKeyDown={(e) => {
+          if (e.key === "Tab") return;
+          e.preventDefault();
+          if ((e.key === "Backspace" || e.key === "Delete") && !e.ctrlKey && !e.altKey) {
+            onChange("");
+            return;
+          }
+          const combo = accelerator(e.nativeEvent);
+          // A shortcut needs a modifier, or every press of the key would be taken.
+          if (combo && combo.includes("+")) onChange(combo);
+        }}
+      />
+      <button disabled={!value} onClick={() => onChange("")}>
+        Turn off
+      </button>
+    </span>
+  );
+}
+
+function ShortcutSettings({ settings, change }: SectionProps) {
+  const { data: status = [] } = useQuery({
+    queryKey: ["hotkeys", settings["app.hotkeys.increment"], settings["app.hotkeys.toggleDetection"]],
+    queryFn: api.hotkeys,
+  });
+  const error = (action: string) => status.find((s) => s.action === action)?.error ?? undefined;
+  return (
+    <>
+      <h3>Keyboard shortcuts</h3>
+      <p className="muted small">
+        These work anywhere in Windows. Click a box and press the keys; Backspace turns it off. In Patchouli, Ctrl+K
+        jumps to any page or anime.
+      </p>
+      <Field
+        label="Next episode watched"
+        htmlFor="hotkey-increment"
+        hint={error("increment") ?? "Records the next episode of what's playing."}
+      >
+        <ShortcutInput
+          id="hotkey-increment"
+          value={settings["app.hotkeys.increment"]}
+          onChange={(v) => change("app.hotkeys.increment", v)}
+        />
+      </Field>
+      <Field
+        label="Pause detection"
+        htmlFor="hotkey-detection"
+        hint={error("toggleDetection") ?? "Stops or resumes checking players."}
+      >
+        <ShortcutInput
+          id="hotkey-detection"
+          value={settings["app.hotkeys.toggleDetection"]}
+          onChange={(v) => change("app.hotkeys.toggleDetection", v)}
+        />
+      </Field>
+    </>
+  );
+}
+
 function ApplicationSection({ settings, change }: SectionProps) {
   return (
     <section className="settings-section">
@@ -153,6 +240,7 @@ function ApplicationSection({ settings, change }: SectionProps) {
         checked={settings["app.startWithWindows"]}
         onChange={(v) => change("app.startWithWindows", v)}
       />
+      <ShortcutSettings settings={settings} change={change} />
     </section>
   );
 }

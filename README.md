@@ -21,6 +21,7 @@ If you're coming from Taiga, use **Settings ? Advanced ? Import from Taiga** to 
 - Check torrent RSS feeds and filter releases against your list.
 - Show what you're watching on Discord or send playback events to a webhook.
 - Export your list as Markdown or MyAnimeList XML.
+- Press Ctrl+K to jump to any page or anime. System-wide shortcuts record the next episode of what's playing (Ctrl+Alt+Shift+Up) or pause detection (Ctrl+Alt+Shift+P).
 
 Windows is the tested platform. Linux and macOS player detection are experimental.
 

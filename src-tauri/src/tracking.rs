@@ -361,6 +361,24 @@ fn commit(app: &AppHandle, state: &AppState, anime_id: i32, episode: i32) {
     }
 }
 
+/// Records the episode after the last watched one of `anime_id` (the "+1
+/// episode" shortcut). Returns the title and episode, or `None` if there's
+/// no next episode.
+pub fn increment(app: &AppHandle, state: &AppState, anime_id: i32) -> Option<(String, i32)> {
+    let library = DbLibrary(state);
+    let item = library.anime(anime_id)?;
+    let watched = library
+        .entry(anime_id)
+        .filter(|e| patchouli_track::is_in_list(Some(e)))
+        .map_or(0, |e| e.watched_episodes);
+    let episode = watched + 1;
+    if item.episode_count > 0 && episode > item.episode_count {
+        return None;
+    }
+    commit(app, state, anime_id, episode);
+    Some((crate::sharing::preferred_title(&item, state), episode))
+}
+
 fn notify_confirmation(app: &AppHandle, state: &AppState, update: UpdateState) {
     let title = DbLibrary(state)
         .anime(update.anime_id)

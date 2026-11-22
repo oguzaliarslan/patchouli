@@ -114,6 +114,12 @@ pub struct Settings {
     pub app_color_scheme: ColorScheme,
     #[serde(rename = "app.hideNsfw")]
     pub app_hide_nsfw: bool,
+    /// System-wide shortcut: next episode of what's playing watched. Empty is off.
+    #[serde(rename = "app.hotkeys.increment")]
+    pub hotkey_increment: String,
+    /// System-wide shortcut: pause or resume player detection.
+    #[serde(rename = "app.hotkeys.toggleDetection")]
+    pub hotkey_toggle_detection: String,
     #[serde(rename = "app.startInTray")]
     pub app_start_in_tray: bool,
     #[serde(rename = "app.titleLanguage")]
@@ -274,6 +280,8 @@ impl Default for Settings {
             app_start_with_windows: false,
             app_color_scheme: ColorScheme::System,
             app_hide_nsfw: true,
+            hotkey_increment: "Ctrl+Alt+Shift+Up".into(),
+            hotkey_toggle_detection: "Ctrl+Alt+Shift+P".into(),
             app_start_in_tray: false,
             app_title_language: TitleLanguage::Romaji,
             library_folders: Vec::new(),

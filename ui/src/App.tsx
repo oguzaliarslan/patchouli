@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimeDialog } from "./components/AnimeDialog";
+import { CommandPalette } from "./components/CommandPalette";
 import { ContextMenu, type MenuState } from "./components/ContextMenu";
 import { Icon, type IconName } from "./components/Icon";
 import { AppContext, type AppActions, type Page } from "./lib/context";
@@ -65,6 +66,7 @@ export default function App() {
   useColorScheme(settings?.["app.colorScheme"]);
   const sync = useBackendEvents();
   const { data: list } = useList();
+  const syncNow = useCallback(() => void sync.syncNow(), [sync]);
   const { data: torrents } = useTorrents();
   const counts: Partial<Record<Page, number>> = {
     list: list?.length,
@@ -157,6 +159,7 @@ export default function App() {
         />
       )}
       {menu && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
+      <CommandPalette onSyncNow={syncNow} />
       {toast && (
         <div className="toast" role="status">
           {toast}

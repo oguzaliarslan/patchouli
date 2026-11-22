@@ -5,6 +5,7 @@ mod credentials;
 mod discover;
 mod error;
 mod export;
+mod hotkeys;
 mod library;
 mod logging;
 mod paths;
@@ -148,6 +149,9 @@ fn init_state(app: &AppHandle) -> Result<AppState, Box<dyn std::error::Error>> {
                 sync::restore_session(&state);
             }
         }
+        if keys.iter().any(|k| k.starts_with("app.hotkeys.")) {
+            hotkeys::apply(&handle, new);
+        }
         if keys.contains("app.startWithWindows") {
             window::apply_autostart(&handle, new.app_start_with_windows);
         }
@@ -265,6 +269,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(hotkeys::plugin())
         .plugin(
             tauri_plugin_autostart::Builder::new()
                 .args([window::AUTOSTART_ARG])
@@ -284,6 +289,7 @@ pub fn run() {
             window::create_tray(app.handle())?;
             window::show_on_start(app.handle(), &state);
             window::apply_autostart(app.handle(), state.settings.get().app_start_with_windows);
+            hotkeys::apply(app.handle(), &state.settings.get());
             app.manage(state);
             tracking::start(app.handle());
             torrents::start(app.handle());
@@ -313,6 +319,7 @@ pub fn run() {
             sync::mirror_dismiss_failed,
             discover::sequels_get,
             backup::backups_get,
+            hotkeys::hotkeys_get,
             backup::backup_now,
             backup::backup_open_folder,
             backup::backup_restore,
