@@ -1,36 +1,58 @@
 # Patchouli
 
-Patchouli is a desktop anime tracker. It recognizes episodes playing on your computer and updates your AniList or MyAnimeList progress. It can also scan your local library and open the next unwatched episode.
+Patchouli keeps your AniList or MyAnimeList list up to date while you watch. Play an episode in mpv, VLC, MPC-HC or most other players, and it works out which show and episode that is. A couple of minutes in, it marks the episode as watched.
 
-## Getting started
+It's a rewrite of [Taiga](https://github.com/erengy/taiga) in Rust and Tauri, and it can bring over your Taiga list and settings.
 
-Download a Windows installer or portable ZIP from [GitHub Releases](https://github.com/oguzaliarslan/patchouli/releases). If there are no packages listed, see [building from source](docs/development.md).
+![Home: what's playing, what you're in the middle of, and suggestions](docs/images/home.png)
 
-1. Add your anime folders under **Settings ? Library**.
-2. Connect AniList or MyAnimeList under **Settings ? Accounts**. If the build needs a client ID, follow the [account setup guide](docs/setup.md).
-3. Play an episode in a supported player. **Home** shows what Patchouli recognized and when it will update your list.
+## Getting it
 
-If you're coming from Taiga, use **Settings ? Advanced ? Import from Taiga** to bring over your list, history, and settings. Reconnect your account after importing.
+Download the installer or the portable ZIP from [Releases](https://github.com/oguzaliarslan/patchouli/releases). If there's nothing there yet, [build it yourself](docs/development.md).
 
-## What else it does
+Once it's running:
 
-- See when the next episode of each show you're watching airs, and get a notification when it does.
-- Keep both an AniList and a MyAnimeList list: changes to your main list are copied to the other one, and **Compare lists** shows where they differ and fixes them either way.
-- Find sequels of what you've finished that aren't in your list, and recommendations based on what you liked.
-- Browse seasonal anime grouped by type, airing status or list status, and see your watch history and list statistics.
-- Select several anime in the list (Ctrl/Shift+click) to change their status or score at once, and choose what double- and middle-click do.
-- Check torrent RSS feeds and filter releases against your list.
-- Show what you're watching on Discord or send playback events to a webhook.
-- Export your list as Markdown or MyAnimeList XML.
-- Press Ctrl+K to jump to any page or anime. System-wide shortcuts record the next episode of what's playing (Ctrl+Alt+Shift+Up) or pause detection (Ctrl+Alt+Shift+P).
+1. Log in under Settings › Accounts. If it says the build has no client ID, [set one up](docs/setup.md#logging-in).
+2. Add the folders your anime is in under Settings › Library.
+3. Play an episode. Home shows what Patchouli recognised and how long until it updates your list.
 
-Windows is the tested platform. Linux and macOS player detection are experimental.
+Used Taiga before? Patchouli offers to import it the first time you open it, or you can do it later from Settings › Advanced › Import from Taiga. You'll have to log in again afterwards.
 
-## Documentation
+Windows is the only platform it's been tested on. Linux and macOS builds can detect some players, but nobody has tried them yet.
 
-- [Accounts, Discord, and local data](docs/setup.md)
-- [Development and troubleshooting](docs/development.md)
-- [Windows packaging and updates](docs/releases.md)
-- [Migration notes](MIGRATION_PLAN.md)
+## Your list
 
-Patchouli is a Rust and Tauri port of [Taiga](https://github.com/erengy/taiga). See the [GPLv3 license](LICENSE) and [third-party notices](THIRD_PARTY.md).
+![The anime list in table view](docs/images/list.png)
+
+The list has a table view and a poster view, one tab per status, and a filter. Next to each title you can see when the next episode airs, or that it's already in your folders.
+
+Ctrl+click or Shift+click to select several anime, then right-click to change their status or score in one go. You can choose what double-click and middle-click do in Settings › Application. The list exports as Markdown or MyAnimeList XML.
+
+![The poster view in the dark theme](docs/images/list-dark.png)
+
+## Seasons
+
+![Summer 2013 in the Seasons page](docs/images/seasons.png)
+
+Every anime of a season, grouped by type, airing status or whether it's in your list. Click a group's header to fold it. You can sort by popularity, score or start date, and filter by title, genre or studio.
+
+## Also
+
+- Schedule shows when the next episode of each show you're watching airs, and you can get a notification when it does.
+- Sequels finds new seasons of things you've finished, and Home suggests more based on what you liked.
+- If you have both an AniList and a MyAnimeList account, changes can be copied from one to the other. Compare lists shows where they've drifted apart.
+- Torrents checks an RSS feed for new episodes of what you're watching, using Taiga's filters.
+- It can show what you're watching on Discord, or send it to a webhook.
+- Profile has your stats and a heatmap of the year.
+- Ctrl+K jumps to any page or anime. Ctrl+Alt+Shift+Up marks the next episode of what's playing as watched from anywhere, and Ctrl+Alt+Shift+P pauses detection.
+
+The screenshots use the made-up sample data from the browser preview, so the titles and posters aren't real.
+
+## More
+
+- [Setup](docs/setup.md): logins, Discord, importing from Taiga, players, where your data lives
+- [Development](docs/development.md): building and running from source
+- [Releases](docs/releases.md): packaging, signing and updates
+- [Migration notes](MIGRATION_PLAN.md): how the Taiga port was done and what's still missing
+
+Patchouli is GPLv3, like Taiga. See [LICENSE](LICENSE) and [THIRD_PARTY.md](THIRD_PARTY.md).

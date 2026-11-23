@@ -37,6 +37,37 @@ function random(seed: number) {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
+/**
+ * Made-up cover art (an SVG data URL), so sample posters look like posters:
+ * a sky gradient, a sun or moon, layered hills and the title.
+ */
+function posterArt(id: number, title: string): string {
+  const r = random(id * 31 + 7);
+  const hue = Math.floor(r() * 360);
+  const sky1 = `hsl(${hue} 70% ${30 + r() * 25}%)`;
+  const sky2 = `hsl(${(hue + 40 + r() * 80) % 360} 75% ${55 + r() * 20}%)`;
+  const land = (h: number, l: number) => `hsl(${(hue + h) % 360} 45% ${l}%)`;
+  const sunX = 40 + r() * 150;
+  const sunY = 60 + r() * 110;
+  const sunR = 26 + r() * 30;
+  const hill = (base: number, amp: number) => {
+    const p = [0, 1, 2, 3, 4].map((i) => `${i * 60},${base - r() * amp}`);
+    return `M0,345 L${p.join(" L")} L240,${base - r() * amp} L240,345 Z`;
+  };
+  const words = title.replace(/[&<>"]/g, "").split(" ");
+  const lines = words.length > 2 ? [words.slice(0, 2).join(" "), words.slice(2).join(" ")] : [words.join(" ")];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 345">
+<defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky1}"/><stop offset="1" stop-color="${sky2}"/></linearGradient></defs>
+<rect width="230" height="345" fill="url(#s)"/>
+<circle cx="${sunX}" cy="${sunY}" r="${sunR}" fill="hsl(${(hue + 180) % 360} 90% 88%)" opacity="0.9"/>
+<path d="${hill(250, 50)}" fill="${land(200, 45)}" opacity="0.75"/>
+<path d="${hill(285, 40)}" fill="${land(220, 30)}"/>
+<path d="${hill(318, 25)}" fill="${land(240, 16)}"/>
+${lines.map((l, i) => `<text x="16" y="${300 + i * 24 - (lines.length - 1) * 24}" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#fff">${l}</text>`).join("")}
+</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 function makeAnime(id: number): Anime {
   const r = random(id);
   const pick = <T,>(list: T[]) => list[Math.floor(r() * list.length)];
@@ -58,7 +89,7 @@ function makeAnime(id: number): Anime {
     dateFinished: airing ? "0000-00-00" : `${year}-${pad(Math.min(12, month + 3))}-00`,
     score: Math.round((5 + r() * 4.5) * 100) / 100,
     popularityRank: Math.floor(r() * 5000) + 1,
-    imageUrl: "",
+    imageUrl: posterArt(id, romaji),
     synopsis:
       "A sample synopsis for this made-up series.<br><br>It exists only so the interface can be tried out without logging in.",
     trailerId: "",
@@ -416,6 +447,15 @@ const PLAYERS = ["MPC-HC", "mpv", "VLC media player", "PotPlayer", "MPC-BE", "Ko
 
 export function installMocks() {
   (window as { __patchouliMocks?: boolean }).__patchouliMocks = true;
+  // `?page=seasons&seasons.groupBy="airing"` opens a page with these view
+  // preferences, for screenshots taken with a fresh browser profile.
+  for (const [key, value] of new URLSearchParams(location.search)) {
+    try {
+      localStorage.setItem(`tracker.${key}`, key === "page" ? JSON.stringify(value) : value);
+    } catch {
+      // No storage; the defaults apply.
+    }
+  }
   mockWindows("main");
   mockIPC(
     async (cmd, args) => {
