@@ -157,6 +157,10 @@ export function SeasonsPage() {
   const [groupBy, setGroupBy] = usePref<GroupBy>("seasons.groupBy", "type");
   const [view, setView] = usePref<View>("seasons.view", "details");
   const [hideListed, setHideListed] = usePref("seasons.hideListed", false);
+  /** Folded groups, as `groupBy:label`; they stay folded in other seasons, like Taiga's list groups. */
+  const [collapsed, setCollapsed] = usePref<string[]>("seasons.collapsed", []);
+  const toggleGroup = (key: string) =>
+    setCollapsed(collapsed.includes(key) ? collapsed.filter((k) => k !== key) : [...collapsed, key]);
   const [text, setText] = useState("");
   const language = settings?.["app.titleLanguage"] ?? "romaji";
   const hideNsfw = settings?.["app.hideNsfw"] ?? true;
@@ -314,9 +318,22 @@ export function SeasonsPage() {
         groups.map(([group, anime]) => (
           <section key={group}>
             <h2 className="section-title">
-              {group} <span className="count">{anime.length}</span>
+              <button
+                className="group-toggle"
+                aria-expanded={!collapsed.includes(`${groupBy}:${group}`)}
+                title="Fold or unfold this group"
+                onClick={() => toggleGroup(`${groupBy}:${group}`)}
+              >
+                <span className="group-chevron" aria-hidden="true">
+                  ▾
+                </span>
+                {group} <span className="count">{anime.length}</span>
+              </button>
             </h2>
-            <div className={view === "details" ? "season-tiles" : "result-grid"}>
+            <div
+              className={view === "details" ? "season-tiles" : "result-grid"}
+              hidden={collapsed.includes(`${groupBy}:${group}`)}
+            >
               {anime.map((a) => {
                 const title = preferredTitle(a, language);
                 const entry = entries.get(a.id);
