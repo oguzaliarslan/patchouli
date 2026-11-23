@@ -45,7 +45,7 @@ export function HomePage({ sync }: { sync: SyncState }) {
   const watching = items
     .filter((i) => i.entry.status === "Watching")
     .sort((a, b) => b.entry.lastUpdated - a.entry.lastUpdated)
-    .slice(0, 12);
+    .slice(0, 6);
 
   return (
     <div className="page">
@@ -102,9 +102,10 @@ export function HomePage({ sync }: { sync: SyncState }) {
                   openMenu(e, { animeId: item.entry.animeId, anime: item.anime, entry: item.entry, title })
                 }
               >
-                <Poster anime={item.anime} title={title} className="poster small" />
+                <Poster anime={item.anime} title={title} />
+                <Progress item={item} availability={availability(item, available)} flat />
                 <span className="continue-text">
-                  <span className="title-clamp">{title}</span>
+                  <span className="anime-card-title title-clamp">{title}</span>
                   <span className="muted small">
                     Episode {episodesText(item.entry.watchedEpisodes, item.anime?.episodeCount)} ·{" "}
                     {relativeTime(item.entry.lastUpdated)}
@@ -112,7 +113,6 @@ export function HomePage({ sync }: { sync: SyncState }) {
                   {highlight && availability(item, available).next != null && (
                     <span className="small on-disk">Episode {availability(item, available).next} is on disk</span>
                   )}
-                  <Progress item={item} availability={availability(item, available)} />
                 </span>
               </button>
             );

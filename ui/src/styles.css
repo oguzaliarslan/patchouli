@@ -760,30 +760,40 @@ button.now-playing-title {
   color: var(--muted);
 }
 
+/* Big poster cards, the size of the list's card view. */
 .continue-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, 160px);
+  gap: 18px 16px;
+  margin-bottom: 8px;
 }
 
 .continue-card {
   display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
   text-align: left;
-  border-color: var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
+  color: inherit;
+}
+
+.continue-card:hover:not(:disabled) {
+  background: none;
+}
+
+.continue-card:hover .poster {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 2px;
 }
 
 .continue-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
-  flex: 1;
 }
 
 /* Posters and cards -------------------------------------------------------- */
@@ -2007,8 +2017,8 @@ dd {
 
 .suggest-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, 136px);
+  gap: 16px 14px;
   margin-bottom: 24px;
 }
 

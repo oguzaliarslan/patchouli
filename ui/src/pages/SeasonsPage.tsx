@@ -65,7 +65,13 @@ const TYPE_GROUPS: [string, AnimeType[]][] = [
   ["Other", ["Music", "Unknown"]],
 ];
 
-const AIRING_ORDER: Anime["status"][] = ["Airing", "FinishedAiring", "NotYetAired", "Unknown"];
+/** Taiga's airing groups, in its order (`kSeriesStatuses`) and with its labels. */
+const AIRING_GROUPS: [Anime["status"], string][] = [
+  ["FinishedAiring", "Finished airing"],
+  ["Airing", "Currently airing"],
+  ["NotYetAired", "Not yet aired"],
+  ["Unknown", "Unknown"],
+];
 
 const GROUP_LABELS: Record<GroupBy, string> = {
   type: "Type",
@@ -93,7 +99,7 @@ function groupAnime(
       groups = TYPE_GROUPS.map(([label, types]) => [label, (a) => types.includes(a.type)]);
       break;
     case "airing":
-      groups = AIRING_ORDER.map((status) => [AIRING_LABELS[status], (a) => a.status === status]);
+      groups = AIRING_GROUPS.map(([status, label]) => [label, (a) => a.status === status]);
       break;
     case "listStatus": {
       const statusOf = (a: Anime): ListStatus | null => entries.get(a.id)?.status ?? null;
