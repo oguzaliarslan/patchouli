@@ -204,7 +204,7 @@ Estimates assume one experienced Rust developer. With a dedicated frontend devel
 - [x] Theming: light/dark/system (page and title bar), NSFW hiding, title language (romaji/english/native)
 - [x] Tray icon (show, sync, quit), close/start to tray, window position and size persistence
 - [x] Browser preview with sample data (`src/mocks.ts`) for UI work without the app
-- [ ] Posters load straight from the services' URLs; a disk cache is still to do
+- [x] Poster disk cache (`src-tauri/src/posters.rs`): the web view loads posters through a `poster` URI scheme; the first request downloads the image with the shared client (proxy applies) into `<data>/images/`, later ones are served from disk
 - [ ] i18n (phase 6)
 - **Exit:** a user can log in, see the synced list, edit entries and search, with no detection yet (verified against sample data; a real login needs client IDs)
 
@@ -310,11 +310,11 @@ Taiga 1.x is on the `master` branch of erengy/taiga (1.4.1, March 2024). Its `sr
 **Medium**
 - [ ] Announcement formats: 1.x's script language (`taiga/script.cpp`: `%title%`, `$if(...)`) for Discord and HTTP text; Discord options to show the group, elapsed time and username
 - [ ] Recognition: ignored strings (removed before parsing) and a switch for looking up parent folders
-- [ ] List: double-click and middle-click actions
+- [x] List: double-click and middle-click actions (Settings › Application, Taiga's six choices and defaults, imported from 1.x), plus multi-select (Ctrl/Shift+click, Ctrl+A) with a menu that sets status or score, marks the next episode, copies or removes for every selected anime
 - [ ] Play episodes with a chosen player (`recognition/mediaplayers/launchpath`) instead of the default app
 - [ ] "Search torrents for this anime" in the anime menu, and user-defined external links (`program/general/externallinks`)
-- [ ] Seasons: group by (type, status…), view as tiles or a list, remember the last season
-- [ ] Stats: local data (poster cache, torrent files)
+- [x] Seasons: group by type, airing status or list status (with "Not in list"); sort by popularity, score, title, airing date or episodes; Details tiles (title bar coloured by airing status, aired dates, episodes, genres, studios, score, popularity, synopsis) or Images with a details tooltip; filter by title, genre, tag or studio; pick any season and year; refresh; middle-click opens the page; the season, grouping, sort and view are remembered
+- [x] Stats: local data on Profile (cached posters and saved torrent files, count and size), with a button to clear the poster cache
 - [ ] Kitsu (deferred since phase 2)
 
 **Not ported** (obsolete or not needed): mIRC and Twitter announcements, SSL revocation and connection-reuse switches, hiding the sidebar, the memory timer, translations

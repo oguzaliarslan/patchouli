@@ -59,7 +59,7 @@ export function useTracking() {
 }
 
 /** Data that changes when the list or queue changes. */
-function invalidateListData() {
+export function invalidateListData() {
   for (const key of [keys.list, keys.queue, keys.history, keys.info, keys.discover, ["anime"]]) {
     void queryClient.invalidateQueries({ queryKey: key });
   }

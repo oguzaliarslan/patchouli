@@ -17,7 +17,8 @@ If you're coming from Taiga, use **Settings ? Advanced ? Import from Taiga** to 
 - See when the next episode of each show you're watching airs, and get a notification when it does.
 - Keep both an AniList and a MyAnimeList list: changes to your main list are copied to the other one, and **Compare lists** shows where they differ and fixes them either way.
 - Find sequels of what you've finished that aren't in your list, and recommendations based on what you liked.
-- Browse seasonal anime and see your watch history and list statistics.
+- Browse seasonal anime grouped by type, airing status or list status, and see your watch history and list statistics.
+- Select several anime in the list (Ctrl/Shift+click) to change their status or score at once, and choose what double- and middle-click do.
 - Check torrent RSS feeds and filter releases against your list.
 - Show what you're watching on Discord or send playback events to a webhook.
 - Export your list as Markdown or MyAnimeList XML.

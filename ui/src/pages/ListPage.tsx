@@ -25,7 +25,15 @@ import {
 } from "../lib/format";
 import { usePref } from "../lib/prefs";
 import { useCurrentAccount, useList, useSaveEntry, useSettings } from "../lib/queries";
-import { useAnimeMenu } from "../lib/useAnimeMenu";
+import type { MenuTarget } from "../lib/entries";
+import { useAnimeMenu, useBatchMenu, useListAction } from "../lib/useAnimeMenu";
+
+/** How a click changes the selection: Ctrl toggles, Shift selects a range, as in Taiga's list. */
+type SelectMode = "only" | "toggle" | "range";
+
+function selectMode(e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }): SelectMode {
+  return e.shiftKey ? "range" : e.ctrlKey || e.metaKey ? "toggle" : "only";
+}
 
 type Column = "title" | "progress" | "score" | "type" | "season" | "started" | "completed" | "updated";
 
@@ -93,6 +101,8 @@ export function ListPage() {
   const { scoreFormat } = useCurrentAccount();
   const save = useSaveEntry();
   const openMenu = useAnimeMenu();
+  const openBatchMenu = useBatchMenu();
+  const listAction = useListAction();
   const language = settings?.["app.titleLanguage"] ?? "romaji";
   const hideNsfw = settings?.["app.hideNsfw"] ?? true;
   const { data: available } = useAvailable();
@@ -104,7 +114,11 @@ export function ListPage() {
   const [secondary, setSecondary] = usePref<Sort | null>("list.sort2", null);
   const [text, setText] = useState("");
   const [type, setType] = useState("");
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selection, setSelection] = useState<Set<number>>(() => new Set());
+  /** Where a Shift range starts. */
+  const [anchor, setAnchor] = useState<number | null>(null);
+  /** The row the keyboard moves from. */
+  const [focus, setFocus] = useState<number | null>(null);
 
   const visible = useMemo(
     () => items.filter((i) => !(hideNsfw && isNsfw(i.anime))),
@@ -169,6 +183,43 @@ export function ListPage() {
     });
   }, [visible, status, type, text, sort, secondary, language, newFirst, available]);
 
+  // Rows hidden by a filter or tab drop out of the selection.
+  const selected = useMemo(() => {
+    const ids = new Set<number>();
+    for (const r of rows) if (selection.has(r.entry.animeId)) ids.add(r.entry.animeId);
+    return ids;
+  }, [rows, selection]);
+
+  function select(id: number, mode: SelectMode) {
+    setFocus(id);
+    if (mode === "toggle") {
+      const next = new Set(selected);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      setSelection(next);
+      setAnchor(id);
+      return;
+    }
+    const ids = rows.map((r) => r.entry.animeId);
+    const from = mode === "range" && anchor != null ? ids.indexOf(anchor) : -1;
+    if (from < 0) {
+      setSelection(new Set([id]));
+      setAnchor(id);
+      return;
+    }
+    const to = ids.indexOf(id);
+    setSelection(new Set(ids.slice(Math.min(from, to), Math.max(from, to) + 1)));
+  }
+
+  function selectAll() {
+    setSelection(new Set(rows.map((r) => r.entry.animeId)));
+  }
+
+  function clearSelection() {
+    setSelection(new Set());
+    setAnchor(null);
+  }
+
   function onHeaderClick(column: Column, shift: boolean) {
     if (shift) {
       // Shift-click sets the secondary sort.
@@ -197,15 +248,24 @@ export function ListPage() {
     save.mutate(entry);
   }
 
+  const targetOf = (item: ListItem): MenuTarget => ({
+    animeId: item.entry.animeId,
+    anime: item.anime,
+    entry: item.entry,
+    title: itemTitle(item, language),
+  });
+
   const menuFor = (e: React.MouseEvent, item: ListItem) => {
-    setSelected(item.entry.animeId);
-    openMenu(e, {
-      animeId: item.entry.animeId,
-      anime: item.anime,
-      entry: item.entry,
-      title: itemTitle(item, language),
-    });
+    const id = item.entry.animeId;
+    if (selected.size > 1 && selected.has(id)) {
+      openBatchMenu(e, rows.filter((r) => selected.has(r.entry.animeId)).map(targetOf));
+      return;
+    }
+    select(id, "only");
+    openMenu(e, targetOf(item));
   };
+
+  const clickAction = (click: "double" | "middle", item: ListItem) => listAction(click, targetOf(item));
 
   return (
     <div className="page list-page">
@@ -288,6 +348,15 @@ export function ListPage() {
           </select>
         )}
         <span className="muted small toolbar-count">
+          {selected.size > 1 && (
+            <>
+              {selected.size} selected{" "}
+              <button className="link" onClick={clearSelection}>
+                clear
+              </button>
+              {" · "}
+            </>
+          )}
           {rows.length} of {visible.length}
           {secondary && view === "table" && (
             <>
@@ -313,11 +382,15 @@ export function ListPage() {
           sort={sort}
           secondary={secondary}
           selected={selected}
+          focus={focus}
           language={language}
           scoreFormat={scoreFormat}
           onHeaderClick={onHeaderClick}
-          onSelect={setSelected}
+          onSelect={select}
+          onSelectAll={selectAll}
+          onClearSelection={clearSelection}
           onOpen={(id) => app.openAnime(id)}
+          onClickAction={clickAction}
           onMenu={menuFor}
           onStep={step}
         />
@@ -326,7 +399,10 @@ export function ListPage() {
           rows={rows}
           language={language}
           scoreFormat={scoreFormat}
+          selected={selected}
+          onSelect={select}
           onOpen={(id) => app.openAnime(id)}
+          onClickAction={clickAction}
           onMenu={menuFor}
         />
       )}
@@ -339,23 +415,31 @@ function ListTable({
   sort,
   secondary,
   selected,
+  focus,
   language,
   scoreFormat,
   onHeaderClick,
   onSelect,
+  onSelectAll,
+  onClearSelection,
   onOpen,
+  onClickAction,
   onMenu,
   onStep,
 }: {
   rows: ListItem[];
   sort: Sort;
   secondary: Sort | null;
-  selected: number | null;
+  selected: Set<number>;
+  focus: number | null;
   language: "romaji" | "english" | "native";
   scoreFormat: string | null;
   onHeaderClick: (column: Column, shift: boolean) => void;
-  onSelect: (id: number) => void;
+  onSelect: (id: number, mode: SelectMode) => void;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
   onOpen: (id: number) => void;
+  onClickAction: (click: "double" | "middle", item: ListItem) => void;
   onMenu: (e: React.MouseEvent, item: ListItem) => void;
   onStep: (item: ListItem, delta: 1 | -1) => void;
 }) {
@@ -373,14 +457,19 @@ function ListTable({
   });
 
   function onKeyDown(e: React.KeyboardEvent) {
-    const index = rows.findIndex((r) => r.entry.animeId === selected);
+    const index = rows.findIndex((r) => r.entry.animeId === focus);
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       const next = Math.max(0, Math.min(rows.length - 1, index + (e.key === "ArrowDown" ? 1 : -1)));
-      onSelect(rows[next].entry.animeId);
+      onSelect(rows[next].entry.animeId, e.shiftKey ? "range" : "only");
       virtualizer.scrollToIndex(next);
     } else if (e.key === "Enter" && index >= 0) {
       onOpen(rows[index].entry.animeId);
+    } else if (e.key === "a" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      onSelectAll();
+    } else if (e.key === "Escape" && selected.size > 0) {
+      onClearSelection();
     }
   }
 
@@ -424,11 +513,20 @@ function ListTable({
                 key={id}
                 role="row"
                 aria-rowindex={v.index + 2}
-                aria-selected={selected === id}
-                className={`grid-row${selected === id ? " selected" : ""}`}
+                aria-selected={selected.has(id)}
+                className={`grid-row${selected.has(id) ? " selected" : ""}`}
                 style={{ transform: `translateY(${v.start - HEAD_HEIGHT}px)`, height: ROW_HEIGHT }}
-                onClick={() => onSelect(id)}
-                onDoubleClick={() => onOpen(id)}
+                onMouseDown={(e) => {
+                  // No text selection on Shift+click, no autoscroll on middle click.
+                  if (e.shiftKey || e.button === 1) e.preventDefault();
+                }}
+                onClick={(e) => onSelect(id, selectMode(e))}
+                onDoubleClick={(e) => {
+                  if (selectMode(e) === "only") onClickAction("double", item);
+                }}
+                onAuxClick={(e) => {
+                  if (e.button === 1) onClickAction("middle", item);
+                }}
                 onContextMenu={(e) => onMenu(e, item)}
               >
                 <div role="gridcell" className="cell col-title">
@@ -507,13 +605,19 @@ function ListCards({
   rows,
   language,
   scoreFormat,
+  selected,
+  onSelect,
   onOpen,
+  onClickAction,
   onMenu,
 }: {
   rows: ListItem[];
   language: "romaji" | "english" | "native";
   scoreFormat: string | null;
+  selected: Set<number>;
+  onSelect: (id: number, mode: SelectMode) => void;
   onOpen: (id: number) => void;
+  onClickAction: (click: "double" | "middle", item: ListItem) => void;
   onMenu: (e: React.MouseEvent, item: ListItem) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -555,8 +659,20 @@ function ListCards({
               return (
                 <button
                   key={item.entry.animeId}
-                  className="anime-card"
-                  onClick={() => onOpen(item.entry.animeId)}
+                  className={`anime-card${selected.size > 1 && selected.has(item.entry.animeId) ? " selected" : ""}`}
+                  aria-pressed={selected.size > 1 ? selected.has(item.entry.animeId) : undefined}
+                  onMouseDown={(e) => {
+                    if (e.shiftKey || e.button === 1) e.preventDefault();
+                  }}
+                  onClick={(e) => {
+                    // A plain click opens the anime; Ctrl or Shift selects, as in the table.
+                    const mode = selectMode(e);
+                    onSelect(item.entry.animeId, mode);
+                    if (mode === "only") onOpen(item.entry.animeId);
+                  }}
+                  onAuxClick={(e) => {
+                    if (e.button === 1) onClickAction("middle", item);
+                  }}
                   onContextMenu={(e) => onMenu(e, item)}
                 >
                   <Poster anime={item.anime} title={title} />

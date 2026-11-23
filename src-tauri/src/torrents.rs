@@ -396,11 +396,7 @@ async fn download_item(
     let body = response.bytes().await.map_err(|e| e.to_string())?;
     download::validate(status, &url, content_type.as_deref(), disposition, &body)?;
 
-    let dir = if settings.torrent_file_folder.trim().is_empty() {
-        state.data_dir.join("torrents")
-    } else {
-        PathBuf::from(settings.torrent_file_folder.trim())
-    };
+    let dir = file_folder(&state.data_dir, settings);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let file = dir.join(format!("{}.torrent", download::file_name(&item.title)));
     std::fs::write(&file, &body).map_err(|e| format!("{}: {e}", file.display()))?;
@@ -542,6 +538,15 @@ pub fn start(app: &AppHandle) {
             }
         }
     });
+}
+
+/// Where downloaded `.torrent` files are saved.
+pub fn file_folder(data_dir: &Path, settings: &patchouli_settings::Settings) -> PathBuf {
+    if settings.torrent_file_folder.trim().is_empty() {
+        data_dir.join("torrents")
+    } else {
+        PathBuf::from(settings.torrent_file_folder.trim())
+    }
 }
 
 #[cfg(test)]

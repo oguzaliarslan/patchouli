@@ -5,7 +5,9 @@ import {
   api,
   errorCode,
   errorMessage,
+  LIST_ACTION_LABELS,
   type AccountStatus,
+  type ListAction,
   type Settings,
   type SharingStatus,
 } from "../api";
@@ -211,6 +213,22 @@ function ApplicationSection({ settings, change }: SectionProps) {
           <option value="native">Native</option>
         </select>
       </Field>
+      {(
+        [
+          ["app.list.doubleClickAction", "Double-click in the list", "double-click"],
+          ["app.list.middleClickAction", "Middle-click in the list", "middle-click"],
+        ] as const
+      ).map(([key, label, id]) => (
+        <Field key={key} label={label} htmlFor={id}>
+          <select id={id} value={settings[key]} onChange={(e) => change(key, e.target.value as ListAction)}>
+            {(Object.keys(LIST_ACTION_LABELS) as ListAction[]).map((action) => (
+              <option key={action} value={action}>
+                {LIST_ACTION_LABELS[action]}
+              </option>
+            ))}
+          </select>
+        </Field>
+      ))}
       <Toggle
         label="Hide adult content"
         checked={settings["app.hideNsfw"]}

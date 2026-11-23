@@ -192,6 +192,29 @@ fn read_settings(settings: &Element, slug: &str) -> Map<String, Value> {
         }
     }
     let program = settings.child("program");
+    if let Some(action) = program
+        .and_then(|p| p.child("list"))
+        .and_then(|l| l.child("action"))
+    {
+        for (key, attr) in [
+            ("app.list.doubleClickAction", "doubleclick"),
+            ("app.list.middleClickAction", "middleclick"),
+        ] {
+            // Taiga v1's numbering, as `app.list.*ClickAction` values.
+            let value = match action.has_attr(attr).then(|| action.attr_int(attr)) {
+                Some(0) => Some("none"),
+                Some(1) => Some("edit"),
+                Some(2) => Some("openFolder"),
+                Some(3) => Some("playNext"),
+                Some(4) => Some("info"),
+                Some(5) => Some("page"),
+                _ => None,
+            };
+            if let Some(value) = value {
+                map.insert(key.into(), json!(value));
+            }
+        }
+    }
     let flag = |path: &[&str], attr: &str| {
         let mut node = program?;
         for name in path {
@@ -701,7 +724,7 @@ mod tests {
   <program>
     <general enablesharing="true" autostart="true" minimize="false" />
     <notifications><balloon recognized="true" notrecognized="false" /></notifications>
-    <list><action titlelang="english" /><filter><episodes highlight="false" highlightedontop="true" /></filter></list>
+    <list><action titlelang="english" doubleclick="2" middleclick="0" /><filter><episodes highlight="false" highlightedontop="true" /></filter></list>
     <proxy host="socks5://proxy.local:1080" username="u" password="p" />
   </program>
   <announce><discord enabled="true" /><mirc channels="&#03;4#anime" /></announce>
@@ -856,6 +879,8 @@ mod tests {
         assert_eq!(s["app.minimizeToTray"], false);
         assert_eq!(s["app.list.highlightNewEpisodes"], false);
         assert_eq!(s["app.list.newEpisodesFirst"], true);
+        assert_eq!(s["app.list.doubleClickAction"], "openFolder");
+        assert_eq!(s["app.list.middleClickAction"], "none");
         assert_eq!(s["track.notify.notRecognized"], false);
         // Tokens are never imported.
         assert!(!serde_json::to_string(s).unwrap().contains("secret-token"));

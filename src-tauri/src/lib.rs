@@ -11,6 +11,7 @@ mod library;
 mod logging;
 mod paths;
 mod playback;
+mod posters;
 mod recognition;
 mod resources;
 mod sharing;
@@ -304,6 +305,7 @@ pub fn run() {
             resources::start(app.handle());
             Ok(())
         })
+        .register_asynchronous_uri_scheme_protocol(posters::SCHEME, posters::handle)
         .on_window_event(window::on_window_event)
         .invoke_handler(tauri::generate_handler![
             app_info,
@@ -351,6 +353,8 @@ pub fn run() {
             export::list_export,
             stats::stats_get,
             stats::season_get,
+            posters::local_data_get,
+            posters::posters_clear,
             sync::profile_refresh,
             taiga::taiga_detect,
             taiga::taiga_preview,

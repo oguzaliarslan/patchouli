@@ -51,6 +51,20 @@ pub enum UpdateTrigger {
     OnPlayerClose,
 }
 
+/// What double- or middle-clicking an anime in the list does (Taiga v1's
+/// `program/list/action/*`, in the same order).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ListAction {
+    None,
+    Edit,
+    OpenFolder,
+    PlayNext,
+    #[default]
+    Info,
+    Page,
+}
+
 /// What to do when an automatic feed check selects new items.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -105,6 +119,10 @@ pub struct Settings {
     /// …and show them first.
     #[serde(rename = "app.list.newEpisodesFirst")]
     pub list_new_episodes_first: bool,
+    #[serde(rename = "app.list.doubleClickAction")]
+    pub list_double_click_action: ListAction,
+    #[serde(rename = "app.list.middleClickAction")]
+    pub list_middle_click_action: ListAction,
     #[serde(rename = "app.minimizeToTray")]
     pub app_minimize_to_tray: bool,
     /// Registered to start when the user signs in to Windows.
@@ -276,6 +294,8 @@ impl Default for Settings {
             app_close_to_tray: true,
             list_highlight_new_episodes: true,
             list_new_episodes_first: false,
+            list_double_click_action: ListAction::Info,
+            list_middle_click_action: ListAction::PlayNext,
             app_minimize_to_tray: false,
             app_start_with_windows: false,
             app_color_scheme: ColorScheme::System,

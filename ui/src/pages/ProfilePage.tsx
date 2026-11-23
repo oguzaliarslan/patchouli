@@ -1,7 +1,7 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { api, type ListStatus } from "../api";
+import { api, errorMessage, type FileCount, type ListStatus } from "../api";
 import { WatchYear } from "../components/WatchYear";
 import { useApp } from "../lib/context";
 import { LIST_STATUSES, LIST_STATUS_LABELS, TYPE_LABELS, formatScore } from "../lib/format";
@@ -58,6 +58,52 @@ function Share({ label, value, total }: { label: string; value: number; total: n
       </span>
       <span className="share-value">{value}</span>
     </div>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function filesText({ count, bytes }: FileCount, noun: string): string {
+  return `${count.toLocaleString()} ${noun}${count === 1 ? "" : "s"} (${formatBytes(bytes)})`;
+}
+
+/** Taiga v1's "Local data": the poster cache and saved torrent files. */
+function LocalDataSection() {
+  const app = useApp();
+  const { data } = useQuery({ queryKey: ["localData"], queryFn: api.localData, staleTime: 0 });
+  const clear = useMutation({
+    mutationFn: api.clearPosters,
+    onSuccess: (n) => app.notify(`Removed ${n} cached poster${n === 1 ? "" : "s"}.`),
+    onError: (e) => app.notify(errorMessage(e)),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: ["localData"] }),
+  });
+  if (!data) return null;
+  return (
+    <section>
+      <h2 className="section-title">Local data</h2>
+      <dl className="local-data">
+        <dt>Posters</dt>
+        <dd>
+          <span title={data.postersFolder}>{filesText(data.posters, "image")}</span>
+          <button
+            className="link"
+            disabled={data.posters.count === 0 || clear.isPending}
+            title="They download again when shown"
+            onClick={() => clear.mutate()}
+          >
+            Clear
+          </button>
+        </dd>
+        <dt>Torrents</dt>
+        <dd>
+          <span title={data.torrentsFolder}>{filesText(data.torrents, "file")}</span>
+        </dd>
+      </dl>
+    </section>
   );
 }
 
@@ -206,6 +252,7 @@ export function ProfilePage() {
           {history && <WatchYear history={history} list={list} language={language} />}
         </>
       )}
+      <LocalDataSection />
     </div>
   );
 }

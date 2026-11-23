@@ -123,6 +123,8 @@ let settings: Settings = {
   "app.closeToTray": true,
   "app.list.highlightNewEpisodes": true,
   "app.list.newEpisodesFirst": false,
+  "app.list.doubleClickAction": "info",
+  "app.list.middleClickAction": "playNext",
   "app.minimizeToTray": false,
   "app.startWithWindows": false,
   "app.colorScheme": "system",
@@ -413,6 +415,7 @@ function saveEntry(entry: ListEntry): boolean {
 const PLAYERS = ["MPC-HC", "mpv", "VLC media player", "PotPlayer", "MPC-BE", "Kodi", "SMPlayer", "Zoom Player"];
 
 export function installMocks() {
+  (window as { __patchouliMocks?: boolean }).__patchouliMocks = true;
   mockWindows("main");
   mockIPC(
     async (cmd, args) => {
@@ -678,6 +681,15 @@ export function installMocks() {
             })
             .sort((x, y) => x.popularityRank - y.popularityRank);
         }
+        case "local_data_get":
+          return {
+            posters: { count: 214, bytes: 31_457_280 },
+            postersFolder: "C:\\Users\\Sample\\AppData\\Roaming\\app.tracker.desktop\\images",
+            torrents: { count: 12, bytes: 184_320 },
+            torrentsFolder: "C:\\Users\\Sample\\AppData\\Roaming\\app.tracker.desktop\\torrents",
+          };
+        case "posters_clear":
+          return 214;
         case "stats_get": {
           const items = [...entries.values()];
           const scoreCounts = Array(11).fill(0);

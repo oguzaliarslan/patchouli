@@ -1,6 +1,6 @@
 // Typed wrappers around Tauri commands. Replace with tauri-specta generated
 // bindings once the command surface grows (see MIGRATION_PLAN.md §4).
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 export interface AppInfo {
@@ -15,6 +15,40 @@ export interface AppInfo {
   queueCount: number;
 }
 
+export interface FileCount {
+  count: number;
+  bytes: number;
+}
+
+/** Taiga v1's "Local data" statistics. */
+export interface LocalData {
+  posters: FileCount;
+  postersFolder: string;
+  torrents: FileCount;
+  torrentsFolder: string;
+}
+
+/**
+ * A poster's address through the app's disk cache (the `poster` scheme),
+ * which downloads it once. The browser preview loads it directly.
+ */
+export function posterSrc(url: string): string {
+  if (!/^https?:\/\//.test(url) || (window as { __patchouliMocks?: boolean }).__patchouliMocks) return url;
+  return convertFileSrc(url, "poster");
+}
+
+/** What double- or middle-clicking an anime in the list does (Taiga v1's options). */
+export type ListAction = "none" | "edit" | "openFolder" | "playNext" | "info" | "page";
+
+export const LIST_ACTION_LABELS: Record<ListAction, string> = {
+  none: "Do nothing",
+  edit: "Edit list entry",
+  openFolder: "Open folder",
+  playNext: "Play next episode",
+  info: "Show details",
+  page: "Open page in browser",
+};
+
 /**
  * Settings as stored in settings.json: a flat object with Taiga's dotted keys.
  * Unknown keys are kept, so always send back the whole object.
@@ -26,6 +60,8 @@ export interface Settings {
   "app.closeToTray": boolean;
   "app.list.highlightNewEpisodes": boolean;
   "app.list.newEpisodesFirst": boolean;
+  "app.list.doubleClickAction": ListAction;
+  "app.list.middleClickAction": ListAction;
   "app.minimizeToTray": boolean;
   "app.startWithWindows": boolean;
   "app.colorScheme": "system" | "light" | "dark";
@@ -640,6 +676,8 @@ export const api = {
 
   season: (season: string, year: number) => invoke<Anime[]>("season_get", { season, year }),
   stats: () => invoke<Stats>("stats_get"),
+  localData: () => invoke<LocalData>("local_data_get"),
+  clearPosters: () => invoke<number>("posters_clear"),
   /** Fetches the account again (name, picture). */
   refreshProfile: () => invoke<AccountStatus>("profile_refresh"),
 

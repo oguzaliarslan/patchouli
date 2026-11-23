@@ -161,3 +161,77 @@ export function withStatus(entry: ListEntry, status: ListStatus, total: number):
   }
   return updated;
 }
+
+export interface BatchDeps {
+  service: ServiceId | undefined;
+  scoreFormat: string | null;
+  /** Saves every entry, then refreshes the list once. */
+  saveAll: (entries: ListEntry[]) => void;
+  removeAll: (targets: MenuTarget[]) => void;
+  notify: (message: string) => void;
+}
+
+/** The right-click menu for several selected anime (Taiga v1 applies these to each). */
+export function batchMenu(targets: MenuTarget[], deps: BatchDeps): MenuEntry[] {
+  const inList = targets.filter(
+    (t): t is MenuTarget & { entry: ListEntry } => !!t.entry && t.entry.status !== "NotInList" && !t.entry.pendingDelete,
+  );
+  const same = <T>(values: T[]) => (values.length > 0 && values.every((v) => v === values[0]) ? values[0] : undefined);
+  const status = same(inList.map((t) => t.entry.status));
+  const score = same(inList.map((t) => t.entry.score));
+  const canStep = inList.filter((t) => {
+    const total = t.anime?.episodeCount ?? 0;
+    return total <= 0 || t.entry.watchedEpisodes < total;
+  });
+  const urls = targets.map((t) => pageUrl(deps.service, t.animeId)).filter((u): u is string => !!u);
+  const items: MenuEntry[] = [
+    { label: `${targets.length} anime selected`, disabled: true },
+    "separator",
+    {
+      label: "Watched next episode",
+      disabled: canStep.length === 0,
+      onSelect: () =>
+        deps.saveAll(
+          canStep.map((t) => withEpisodeWatched(t.anime, t.entry, t.animeId, t.entry.watchedEpisodes + 1)),
+        ),
+    },
+    {
+      label: "Status",
+      disabled: inList.length === 0,
+      items: LIST_STATUSES.map((s) => ({
+        label: LIST_STATUS_LABELS[s],
+        checked: status === s,
+        onSelect: () => deps.saveAll(inList.map((t) => withStatus(t.entry, s, t.anime?.episodeCount ?? 0))),
+      })),
+    },
+    {
+      label: "Score",
+      disabled: inList.length === 0,
+      items: scoreOptions(deps.scoreFormat).map((o) => ({
+        label: o.label,
+        checked: score === o.value,
+        onSelect: () => deps.saveAll(inList.map((t) => ({ ...t.entry, score: o.value }))),
+      })),
+    },
+    "separator",
+    {
+      label: "Copy titles",
+      onSelect: () =>
+        void writeText(targets.map((t) => t.title).join("\n")).then(() => deps.notify(`${targets.length} titles copied.`)),
+    },
+  ];
+  if (urls.length > 0) {
+    items.push({
+      label: "Copy links",
+      onSelect: () => void writeText(urls.join("\n")).then(() => deps.notify(`${urls.length} links copied.`)),
+    });
+  }
+  if (inList.length > 0) {
+    items.push("separator", {
+      label: `Remove ${inList.length} from list…`,
+      danger: true,
+      onSelect: () => deps.removeAll(inList),
+    });
+  }
+  return items;
+}
