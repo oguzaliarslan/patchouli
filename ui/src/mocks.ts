@@ -133,6 +133,15 @@ for (let id = 1; id <= 180; id++) {
     pendingDelete: false,
   });
 }
+// Rewatches as MyAnimeList reports them: still Completed, with `is_rewatching` set.
+[...entries.values()]
+  .filter((e) => e.status === "Completed" && e.watchedEpisodes > 2)
+  .slice(0, 2)
+  .forEach((e, n) => {
+    e.rewatching = true;
+    e.watchedEpisodes = Math.floor(e.watchedEpisodes / 3);
+    e.lastUpdated = now() - 3600 * (n + 1);
+  });
 
 const queue = new Map<number, QueueItem>();
 const animeSettings = new Map<number, AnimeSettings>();

@@ -11,6 +11,7 @@ import { useApp, type AppActions } from "../lib/context";
 import { withEpisodeWatched } from "../lib/entries";
 import {
   LIST_STATUSES,
+  listStatus,
   LIST_STATUS_LABELS,
   TYPE_LABELS,
   episodesText,
@@ -128,14 +129,17 @@ export function ListPage() {
   const counts = useMemo(() => {
     const result: Record<string, number> = { all: visible.length };
     for (const s of LIST_STATUSES) result[s] = 0;
-    for (const i of visible) result[i.entry.status] = (result[i.entry.status] ?? 0) + 1;
+    for (const i of visible) {
+      const s = listStatus(i.entry);
+      result[s] = (result[s] ?? 0) + 1;
+    }
     return result;
   }, [visible]);
 
   const rows = useMemo(() => {
     const needle = text.trim().toLowerCase();
     const filtered = visible.filter((i) => {
-      if (status !== "all" && i.entry.status !== status) return false;
+      if (status !== "all" && listStatus(i.entry) !== status) return false;
       if (type && i.anime?.type !== type) return false;
       if (!needle) return true;
       const t = i.anime?.titles;
