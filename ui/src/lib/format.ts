@@ -1,4 +1,4 @@
-import type { Anime, ListItem, ListStatus, Settings } from "../api";
+import type { Anime, ListEntry, ListItem, ListStatus, Settings } from "../api";
 
 export const LIST_STATUSES: ListStatus[] = [
   "Watching",
@@ -16,6 +16,19 @@ export const LIST_STATUS_LABELS: Record<ListStatus, string> = {
   Dropped: "Dropped",
   PlanToWatch: "Plan to watch",
 };
+
+/**
+ * The list tab an entry belongs in. A rewatch in progress counts as watching:
+ * MyAnimeList keeps it as Completed with `is_rewatching` set.
+ */
+export function listStatus(entry: ListEntry): ListStatus {
+  return entry.rewatching && entry.status === "Completed" ? "Watching" : entry.status;
+}
+
+/** Being watched now, for the first time or again. */
+export function isWatching(entry: ListEntry): boolean {
+  return listStatus(entry) === "Watching";
+}
 
 export const TYPE_LABELS: Record<string, string> = {
   Unknown: "Unknown",

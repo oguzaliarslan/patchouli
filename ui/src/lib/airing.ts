@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ListItem } from "../api";
+import { listStatus } from "./format";
 
 /** Unix seconds, updated every `intervalMs`. */
 export function useNow(intervalMs = 30_000): number {
@@ -26,7 +27,7 @@ export function nextAiring(item: ListItem): NextAiring | null {
 
 /** Entries worth showing airing times for. */
 export function followsAiring(item: ListItem): boolean {
-  const status = item.entry.status;
+  const status = listStatus(item.entry);
   return status === "Watching" || status === "PlanToWatch" || status === "OnHold";
 }
 

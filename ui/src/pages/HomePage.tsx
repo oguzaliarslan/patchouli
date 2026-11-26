@@ -4,7 +4,7 @@ import { Progress } from "../components/Progress";
 import { SuggestionCard, airingText } from "../components/SuggestionCard";
 import { availability, useAvailable } from "../lib/available";
 import { useApp } from "../lib/context";
-import { episodesText, isNsfw, itemTitle, relativeTime } from "../lib/format";
+import { episodesText, isNsfw, isWatching, itemTitle, relativeTime } from "../lib/format";
 import { useAnimeMenu } from "../lib/useAnimeMenu";
 import { useState } from "react";
 import {
@@ -43,7 +43,7 @@ export function HomePage({ sync }: { sync: SyncState }) {
   );
 
   const watching = items
-    .filter((i) => i.entry.status === "Watching")
+    .filter((i) => isWatching(i.entry))
     .sort((a, b) => b.entry.lastUpdated - a.entry.lastUpdated)
     .slice(0, 6);
 
@@ -109,6 +109,7 @@ export function HomePage({ sync }: { sync: SyncState }) {
                   <span className="muted small">
                     Episode {episodesText(item.entry.watchedEpisodes, item.anime?.episodeCount)} ·{" "}
                     {relativeTime(item.entry.lastUpdated)}
+                    {item.entry.rewatching && <span className="badge">Rewatching</span>}
                   </span>
                   {highlight && availability(item, available).next != null && (
                     <span className="small on-disk">Episode {availability(item, available).next} is on disk</span>
