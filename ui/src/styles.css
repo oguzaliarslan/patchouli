@@ -1551,6 +1551,51 @@ dd {
   text-align: right;
 }
 
+.torrent-head {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+.torrent-head.col-num {
+  justify-content: flex-end;
+}
+
+.torrent-head .sort-button {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A divider to drag at the right edge of each header cell. */
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.col-resizer::after {
+  content: "";
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  right: 3px;
+  width: 1px;
+  background: var(--border);
+}
+
+.col-resizer:hover::after,
+.col-resizer:active::after {
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+}
+
 .filter-list {
   list-style: none;
   margin: 8px 0 12px;
